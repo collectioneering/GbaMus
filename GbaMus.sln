@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30114.105
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GbaMus", "GbaMus\GbaMus.csproj", "{BA269AB0-7289-4577-BA6E-ADA33311B471}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GbaMus.Test", "GbaMus.Test\GbaMus.Test.csproj", "{333DCE60-E44A-4E36-939C-3E0F529650EF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SappyDetector", "SappyDetector\SappyDetector.csproj", "{8FCA0898-21EC-42E4-A078-25529DB81562}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BA269AB0-7289-4577-BA6E-ADA33311B471}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA269AB0-7289-4577-BA6E-ADA33311B471}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA269AB0-7289-4577-BA6E-ADA33311B471}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA269AB0-7289-4577-BA6E-ADA33311B471}.Release|Any CPU.Build.0 = Release|Any CPU
+		{333DCE60-E44A-4E36-939C-3E0F529650EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{333DCE60-E44A-4E36-939C-3E0F529650EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{333DCE60-E44A-4E36-939C-3E0F529650EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{333DCE60-E44A-4E36-939C-3E0F529650EF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8FCA0898-21EC-42E4-A078-25529DB81562}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8FCA0898-21EC-42E4-A078-25529DB81562}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8FCA0898-21EC-42E4-A078-25529DB81562}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8FCA0898-21EC-42E4-A078-25529DB81562}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
