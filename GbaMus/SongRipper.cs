@@ -663,7 +663,7 @@ public class SongRipper
             throw new EnvironmentExitException(0);
         }
 
-        int instrBankAddress = sr.Process(outMid);
+        int instrBankAddress = sr.Write(outMid);
 
         // Close files
         inGba.Dispose();
@@ -702,6 +702,26 @@ public class SongRipper
         _trackAmnt = trackAmnt;
     }
 
+    private void ChangeSettings(Settings settings)
+    {
+        if (_inGba.Length < settings.BaseAddress)
+            throw new ArgumentException($"Can't seek to the base address 0x{settings.BaseAddress:x}.");
+        _inGba.Position = settings.BaseAddress;
+        int trackAmnt = _inGba.ReadUInt8LittleEndian();
+        if (trackAmnt is < 1 or > 16)
+            throw new InvalidDataException($"Invalid amount of tracks {trackAmnt}! (must be 1-16).");
+        settings.Debug?.WriteLine($"{trackAmnt} tracks.");
+        _trackAmnt = trackAmnt;
+        _bankNumber = settings.BankNumber ?? -1;
+        _bankUsed = settings.BankNumber.HasValue;
+        _rc = settings.Rc;
+        _gs = settings.Gs;
+        _xg = settings.Xg;
+        _lv = settings.Lv;
+        _sv = settings.Sv;
+        _settings = settings;
+    }
+
     private void Reset()
     {
         if (!_processed)
@@ -732,12 +752,29 @@ public class SongRipper
     }
 
     /// <summary>
-    /// Process source into output stream.
+    /// Write converted MIDI to stream with the specified settings.
     /// </summary>
-    /// <param name="output">Output stream.</param>
+    /// <param name="stream">Stream to write to.</param>
+    /// <param name="settings">Settings to configure.</param>
     /// <returns>Instrument bank address.</returns>
-    public int Process(Stream output)
+    /// <exception cref="ArgumentException">Thrown for bad arguments.</exception>
+    /// <exception cref="InvalidDataException">Thrown for invalid state resulting from provided settings.</exception>
+    public int Write(Stream stream, Settings settings)
     {
+        if (stream == null) throw new ArgumentNullException(nameof(stream));
+        if (settings == null) throw new ArgumentNullException(nameof(settings));
+        ChangeSettings(settings);
+        return Write(stream);
+    }
+
+    /// <summary>
+    /// Write converted MIDI to stream.
+    /// </summary>
+    /// <param name="stream">Stream to write to.</param>
+    /// <returns>Instrument bank address.</returns>
+    public int Write(Stream stream)
+    {
+        if (stream == null) throw new ArgumentNullException(nameof(stream));
         Reset();
         _settings.Debug?.WriteLine("Converting...");
         if (_rc)
@@ -818,7 +855,7 @@ public class SongRipper
         _settings.Debug?.WriteLine($" Maximum simultaneous notes: {_simultaneousNotesMax}");
 
         _settings.Debug?.Write("Dump complete. Now outputting MIDI file...");
-        _midi.Write(output);
+        _midi.Write(stream);
         return instrBankAddress;
     }
 
