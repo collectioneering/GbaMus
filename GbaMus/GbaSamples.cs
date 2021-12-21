@@ -11,6 +11,7 @@ public class GbaSamples
     /// List of pointers to samples within the .gba file, position is # of sample in .sf2
     /// </summary>
     public readonly List<uint> SamplesList;
+
     /// <summary>
     /// Related Sf2 class.
     /// </summary>
@@ -89,12 +90,12 @@ public class GbaSamples
                         {
                             // Square wave with constant duty cycle
                             uint basePointer = (uint)(128 + 64 * (dutyCycle >> 2));
-                            Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.UNSIGNED_8, Encoding.ASCII.GetBytes(name), basePointer, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
+                            Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), basePointer, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
                         }
                         else
                         {
                             // Sqaure wave with variable duty cycle, not exact, but sounds close enough
-                            Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.UNSIGNED_8, Encoding.ASCII.GetBytes(name), 128, 8192, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
+                            Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), 128, 8192, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
                         }
                     }
                     break;
@@ -102,14 +103,14 @@ public class GbaSamples
                 case 1: // Saw wave
                     {
                         string name = $"Saw @0x{pointer:x}";
-                        Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.UNSIGNED_8, Encoding.ASCII.GetBytes(name), 0, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
+                        Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), 0, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
                     }
                     break;
 
                 case 2: // Triangle wave
                     {
                         string name = $"Triangle @0x{pointer:x}";
-                        Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.UNSIGNED_8, Encoding.ASCII.GetBytes(name), 64, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
+                        Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), 64, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
                     }
                     break;
 
@@ -120,7 +121,7 @@ public class GbaSamples
         else
         {
             //Prevent samples which are way too long or too short
-            if (len < 16 || len > 0x3FFFFF) throw new InvalidDataException();
+            if (len is < 16 or > 0x3FFFFF) throw new InvalidDataException();
 
             //Prevent samples with illegal loop point from happening
             if (loopPos > len - 8)
@@ -133,7 +134,7 @@ public class GbaSamples
             string name = bdpcmEn ? $"BDPCM @0x{pointer:x}" : $"Sample @0x{pointer:x}";
 
             // Add the sample to output
-            Sf2.AddNewSample(stream, bdpcmEn ? SampleType.BDPCM : SampleType.SIGNED_8, Encoding.ASCII.GetBytes(name), pointer + 16, len, loopEn, loopPos, (sbyte)originalPitch, (sbyte)pitchCorrection);
+            Sf2.AddNewSample(stream, bdpcmEn ? SampleType.Bdpcm : SampleType.Signed8, Encoding.ASCII.GetBytes(name), pointer + 16, len, loopEn, loopPos, (sbyte)originalPitch, (sbyte)pitchCorrection);
         }
         SamplesList.Add(pointer);
         return SamplesList.Count - 1;
@@ -154,10 +155,10 @@ public class GbaSamples
 
         string name = $"GB3 @0x{pointer:x}";
 
-        Sf2.AddNewSample(stream, SampleType.GAMEBOY_CH3, Encoding.ASCII.GetBytes(name + 'A'), pointer, 256, true, 0, 53, 24, 22050);
-        Sf2.AddNewSample(stream, SampleType.GAMEBOY_CH3, Encoding.ASCII.GetBytes(name + 'B'), pointer, 128, true, 0, 65, 24, 22050);
-        Sf2.AddNewSample(stream, SampleType.GAMEBOY_CH3, Encoding.ASCII.GetBytes(name + 'C'), pointer, 64, true, 0, 77, 24, 22050);
-        Sf2.AddNewSample(stream, SampleType.GAMEBOY_CH3, Encoding.ASCII.GetBytes(name + 'D'), pointer, 32, true, 0, 89, 24, 22050);
+        Sf2.AddNewSample(stream, SampleType.GameboyCh3, Encoding.ASCII.GetBytes(name + 'A'), pointer, 256, true, 0, 53, 24, 22050);
+        Sf2.AddNewSample(stream, SampleType.GameboyCh3, Encoding.ASCII.GetBytes(name + 'B'), pointer, 128, true, 0, 65, 24, 22050);
+        Sf2.AddNewSample(stream, SampleType.GameboyCh3, Encoding.ASCII.GetBytes(name + 'C'), pointer, 64, true, 0, 77, 24, 22050);
+        Sf2.AddNewSample(stream, SampleType.GameboyCh3, Encoding.ASCII.GetBytes(name + 'D'), pointer, 32, true, 0, 89, 24, 22050);
 
         // We have to to add multiple entries to have the size of the list in sync
         // with the numeric indexes of samples....
@@ -202,7 +203,7 @@ public class GbaSamples
 
         for (int i = 0; i < 5; i++)
         {
-            Sf2.AddNewSample(Resources.GetPsgData(), SampleType.SIGNED_16, Encoding.ASCII.GetBytes(name + (char)('A' + i)),
+            Sf2.AddNewSample(Resources.GetPsgData(), SampleType.Signed16, Encoding.ASCII.GetBytes(name + (char)('A' + i)),
                 (uint)s_pulsePointerTbl[dutyCycle * 5 + i], (uint)s_pulseSizeTbl[dutyCycle * 5 + i], true,
                 (uint)(s_pulseSizeTbl[dutyCycle * 5 + i] - s_pulseLoopSize[i]), (sbyte)(36 + 12 * i), 38, 44100);
             SamplesList.Add(dutyCycle);
@@ -215,7 +216,6 @@ public class GbaSamples
     private static readonly int[] s_noiseNormalLenTbl = { 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 88200, 110247, 88197, 77173, 66148, 55123, 44099, 38586, 33074, 27562, 22049, 16537, 11025, 5512, 2756 };
 
     private static readonly int[] s_noiseMetallicLenTbl = { 43755, 38286, 32817, 27347, 21878, 19143, 16408, 13674, 10939, 9572, 8204, 6837, 5469, 4786, 4102, 3418, 2735, 2393, 2051, 1709, 1367, 1196, 1026, 855, 684, 598, 513, 427, 342, 299, 256, 214, 171, 150, 128, 107, 85, 64 };
-
 
     /// <summary>
     /// Converts a Game Boy noise (channel 4) sample.
@@ -238,7 +238,7 @@ public class GbaSamples
 
         string name = "Noise " + (metallic ? "metallic " : "normal ") + key;
 
-        Sf2.AddNewSample(Resources.GetPsgData(), SampleType.UNSIGNED_8, Encoding.ASCII.GetBytes(name), (uint)s_noisePointerTbl[key - 42],
+        Sf2.AddNewSample(Resources.GetPsgData(), SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), (uint)s_noisePointerTbl[key - 42],
             (uint)(metallic ? s_noiseMetallicLenTbl[key - 42] : s_noiseNormalLenTbl[key - 42]), true, 0, (sbyte)key, 0, 44100);
 
         SamplesList.Add(num);

@@ -12,38 +12,38 @@ public class Midi
     /// <summary>
     /// User can change the order of the channels.
     /// </summary>
-    public byte[] chanReorder;
+    public byte[] ChanReorder;
 
     /// <summary>
     /// Delta time per beat.
     /// </summary>
-    private readonly ushort DeltaTimePerBeat;
+    private readonly ushort _deltaTimePerBeat;
 
-    private readonly short[] LastRpnType;
+    private readonly short[] _lastRpnType;
 
-    private readonly short[] LastNrpnType;
+    private readonly short[] _lastNrpnType;
 
-    private readonly int[] LastType;
+    private readonly int[] _lastType;
 
     /// <summary>
     /// Last channel, used for compression.
     /// </summary>
-    private int LastChannel;
+    private int _lastChannel;
 
     /// <summary>
     /// Last event type, used for compression.
     /// </summary>
-    private MidiEventType LastEventType;
+    private MidiEventType _lastEventType;
 
     /// <summary>
     /// Time counter.
     /// </summary>
-    private uint TimeCtr;
+    private uint _timeCtr;
 
     /// <summary>
     /// Track data.
     /// </summary>
-    private MemoryStream Data;
+    private MemoryStream _data;
 
     /// <summary>
     /// Initializes a new instance of <summary>Midi</summary>.
@@ -51,21 +51,21 @@ public class Midi
     /// <param name="deltaTime">Delta time per beat.</param>
     public Midi(ushort deltaTime)
     {
-        chanReorder = new byte[16];
-        LastRpnType = new short[16];
-        LastNrpnType = new short[16];
-        LastType = new int[16];
-        Data = new MemoryStream();
-        DeltaTimePerBeat = deltaTime;
+        ChanReorder = new byte[16];
+        _lastRpnType = new short[16];
+        _lastNrpnType = new short[16];
+        _lastType = new int[16];
+        _data = new MemoryStream();
+        _deltaTimePerBeat = deltaTime;
         for (int i = 15; i >= 0; i--)
         {
-            LastRpnType[i] = -1;
-            LastNrpnType[i] = -1;
-            LastType[i] = -1;
-            chanReorder[i] = (byte)i;
+            _lastRpnType[i] = -1;
+            _lastNrpnType[i] = -1;
+            _lastType[i] = -1;
+            ChanReorder[i] = (byte)i;
         }
-        LastChannel = -1;
-        TimeCtr = 0;
+        _lastChannel = -1;
+        _timeCtr = 0;
     }
 
     /// <summary>
@@ -81,20 +81,20 @@ public class Midi
 
         if (word4 != 0)
         {
-            Data.WriteByte((byte)(word4 | 0x80));
-            Data.WriteByte((byte)(word3 | 0x80));
-            Data.WriteByte((byte)(word2 | 0x80));
+            _data.WriteByte((byte)(word4 | 0x80));
+            _data.WriteByte((byte)(word3 | 0x80));
+            _data.WriteByte((byte)(word2 | 0x80));
         }
         else if (word3 != 0)
         {
-            Data.WriteByte((byte)(word3 | 0x80));
-            Data.WriteByte((byte)(word2 | 0x80));
+            _data.WriteByte((byte)(word3 | 0x80));
+            _data.WriteByte((byte)(word2 | 0x80));
         }
         else if (word2 != 0)
         {
-            Data.WriteByte((byte)(word2 | 0x80));
+            _data.WriteByte((byte)(word2 | 0x80));
         }
-        Data.WriteByte(word1);
+        _data.WriteByte(word1);
     }
 
     /// <summary>
@@ -102,9 +102,9 @@ public class Midi
     /// </summary>
     private void AddDeltaTime()
     {
-        AddVlengthCode((int)TimeCtr);
+        AddVlengthCode((int)_timeCtr);
         // Reset time counter to zero.
-        TimeCtr = 0;
+        _timeCtr = 0;
     }
 
     /// <summary>
@@ -116,13 +116,13 @@ public class Midi
     private void AddEvent(MidiEventType type, int chan, byte param1)
     {
         AddDeltaTime();
-        if (chan != LastChannel || type != LastEventType)
+        if (chan != _lastChannel || type != _lastEventType)
         {
-            LastChannel = chan;
-            LastEventType = type;
-            Data.WriteByte((byte)(((int)type << 4) | chanReorder[chan]));
+            _lastChannel = chan;
+            _lastEventType = type;
+            _data.WriteByte((byte)(((int)type << 4) | ChanReorder[chan]));
         }
-        Data.WriteByte(param1);
+        _data.WriteByte(param1);
     }
 
     /// <summary>
@@ -135,20 +135,20 @@ public class Midi
     private void AddEvent(MidiEventType type, int chan, byte param1, byte param2)
     {
         AddDeltaTime();
-        if (chan != LastChannel || type != LastEventType)
+        if (chan != _lastChannel || type != _lastEventType)
         {
-            LastChannel = chan;
-            LastEventType = type;
-            Data.WriteByte((byte)(((int)type << 4) | chanReorder[chan]));
+            _lastChannel = chan;
+            _lastEventType = type;
+            _data.WriteByte((byte)(((int)type << 4) | ChanReorder[chan]));
         }
-        Data.WriteByte(param1);
-        Data.WriteByte(param2);
+        _data.WriteByte(param1);
+        _data.WriteByte(param2);
     }
 
     [StructLayout(LayoutKind.Explicit, Size = 14)]
     private unsafe struct MthdChunk
     {
-        private static ReadOnlySpan<byte> _head => new[] { (byte)'M', (byte)'T', (byte)'h', (byte)'d' };
+        private static ReadOnlySpan<byte> Head => new[] { (byte)'M', (byte)'T', (byte)'h', (byte)'d' };
 
         [FieldOffset(0)] private fixed byte Name[4];
         [FieldOffset(4)] private fixed byte HdrLen[4];
@@ -159,7 +159,7 @@ public class Midi
         public unsafe MthdChunk(ushort deltaTimePerBeat)
         {
             fixed (byte* b = Name)
-                _head.CopyTo(new Span<byte>(b, 4));
+                Head.CopyTo(new Span<byte>(b, 4));
             fixed (byte* b = HdrLen)
                 BinaryPrimitives.WriteUInt32BigEndian(new Span<byte>(b, 4), 6);
             fixed (byte* b = Format)
@@ -174,7 +174,7 @@ public class Midi
     [StructLayout(LayoutKind.Explicit, Size = 8)]
     private unsafe struct MtrkChunk
     {
-        private static ReadOnlySpan<byte> _head => new[] { (byte)'M', (byte)'T', (byte)'r', (byte)'k' };
+        private static ReadOnlySpan<byte> Head => new[] { (byte)'M', (byte)'T', (byte)'r', (byte)'k' };
 
         [FieldOffset(0)] private fixed byte Name[4];
         [FieldOffset(4)] private fixed byte Size[4];
@@ -182,7 +182,7 @@ public class Midi
         public unsafe MtrkChunk(uint s)
         {
             fixed (byte* b = Name)
-                _head.CopyTo(new Span<byte>(b, 4));
+                Head.CopyTo(new Span<byte>(b, 4));
             fixed (byte* b = Size)
                 BinaryPrimitives.WriteUInt32BigEndian(new Span<byte>(b, 4), s);
         }
@@ -195,23 +195,23 @@ public class Midi
     public void Write(Stream stream)
     {
         //Add end-of-track meta event
-        Data.WriteByte(0x00);
-        Data.WriteByte(0xff);
-        Data.WriteByte(0x2f);
-        Data.WriteByte(0x00);
+        _data.WriteByte(0x00);
+        _data.WriteByte(0xff);
+        _data.WriteByte(0x2f);
+        _data.WriteByte(0x00);
 
         //Write MIDI header
-        stream.WriteStructure(new MthdChunk(DeltaTimePerBeat), 14);
+        stream.WriteStructure(new MthdChunk(_deltaTimePerBeat), 14);
 
         //Write MIDI track data
         //we use SMF-0 standard therefore there is only a single track :)
-        uint s = (uint)Data.Length;
+        uint s = (uint)_data.Length;
         stream.WriteStructure(new MtrkChunk(s), 8);
 
         //Write the track itself
-        Data.Position = 0;
-        Data.CopyTo(stream);
-        Data.Position = Data.Length;
+        _data.Position = 0;
+        _data.CopyTo(stream);
+        _data.Position = _data.Length;
     }
 
     /// <summary>
@@ -219,7 +219,7 @@ public class Midi
     /// </summary>
     public void Clock()
     {
-        TimeCtr++;
+        _timeCtr++;
     }
 
     /// <summary>
@@ -230,7 +230,7 @@ public class Midi
     /// <param name="vel">Velocity.</param>
     public void AddNoteOn(int chan, byte key, byte vel)
     {
-        AddEvent(MidiEventType.NOTEON, chan, key, vel);
+        AddEvent(MidiEventType.Noteon, chan, key, vel);
     }
 
     /// <summary>
@@ -241,7 +241,7 @@ public class Midi
     /// <param name="vel">Velocity.</param>
     public void AddNoteOff(int chan, byte key, byte vel)
     {
-        AddEvent(MidiEventType.NOTEOFF, chan, key, vel);
+        AddEvent(MidiEventType.Noteoff, chan, key, vel);
     }
 
     /// <summary>
@@ -252,7 +252,7 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddController(int chan, byte ctrl, byte value)
     {
-        AddEvent(MidiEventType.CONTROLLER, chan, ctrl, value);
+        AddEvent(MidiEventType.Controller, chan, ctrl, value);
     }
 
     /// <summary>
@@ -262,7 +262,7 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddChanaft(int chan, byte value)
     {
-        AddEvent(MidiEventType.CHNAFT, chan, value);
+        AddEvent(MidiEventType.Chnaft, chan, value);
     }
 
     /// <summary>
@@ -272,7 +272,7 @@ public class Midi
     /// <param name="number">Number.</param>
     public void AddPChange(int chan, byte number)
     {
-        AddEvent(MidiEventType.PCHANGE, chan, number);
+        AddEvent(MidiEventType.Pchange, chan, number);
     }
 
     /// <summary>
@@ -284,7 +284,7 @@ public class Midi
     {
         byte lo = (byte)(value & 0x7f);
         byte hi = (byte)((value >> 7) & 0x7f);
-        AddEvent(MidiEventType.PITCHBEND, chan, lo, hi);
+        AddEvent(MidiEventType.Pitchbend, chan, lo, hi);
     }
 
     /// <summary>
@@ -294,7 +294,7 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddPitchBend(int chan, byte value)
     {
-        AddEvent(MidiEventType.PITCHBEND, chan, 0, value);
+        AddEvent(MidiEventType.Pitchbend, chan, 0, value);
     }
 
     /// <summary>
@@ -305,16 +305,16 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddRpn(int chan, short type, short value)
     {
-        if (LastRpnType[chan] != type || LastType[chan] != 0)
+        if (_lastRpnType[chan] != type || _lastType[chan] != 0)
         {
-            LastRpnType[chan] = type;
-            LastType[chan] = 0;
-            AddEvent(MidiEventType.CONTROLLER, chan, 101, (byte)(type >> 7));
-            AddEvent(MidiEventType.CONTROLLER, chan, 100, (byte)(type & 0x7f));
+            _lastRpnType[chan] = type;
+            _lastType[chan] = 0;
+            AddEvent(MidiEventType.Controller, chan, 101, (byte)(type >> 7));
+            AddEvent(MidiEventType.Controller, chan, 100, (byte)(type & 0x7f));
         }
-        AddEvent(MidiEventType.CONTROLLER, chan, 6, (byte)(value >> 7));
+        AddEvent(MidiEventType.Controller, chan, 6, (byte)(value >> 7));
         if ((value & 0x7f) != 0)
-            AddEvent(MidiEventType.CONTROLLER, chan, 38, (byte)(value & 0x7f));
+            AddEvent(MidiEventType.Controller, chan, 38, (byte)(value & 0x7f));
     }
 
     /// <summary>
@@ -336,16 +336,16 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddNrpn(int chan, short type, short value)
     {
-        if (LastNrpnType[chan] != type || LastType[chan] != 1)
+        if (_lastNrpnType[chan] != type || _lastType[chan] != 1)
         {
-            LastNrpnType[chan] = type;
-            LastType[chan] = 1;
-            AddEvent(MidiEventType.CONTROLLER, chan, 99, (byte)(type >> 7));
-            AddEvent(MidiEventType.CONTROLLER, chan, 98, (byte)(type & 0x7f));
+            _lastNrpnType[chan] = type;
+            _lastType[chan] = 1;
+            AddEvent(MidiEventType.Controller, chan, 99, (byte)(type >> 7));
+            AddEvent(MidiEventType.Controller, chan, 98, (byte)(type & 0x7f));
         }
-        AddEvent(MidiEventType.CONTROLLER, chan, 6, (byte)(value >> 7));
+        AddEvent(MidiEventType.Controller, chan, 6, (byte)(value >> 7));
         if ((value & 0x7f) != 0)
-            AddEvent(MidiEventType.CONTROLLER, chan, 38, (byte)(value & 0x7f));
+            AddEvent(MidiEventType.Controller, chan, 38, (byte)(value & 0x7f));
     }
 
     //Add NRPN event with only the MSB of value used
@@ -367,9 +367,9 @@ public class Midi
     public void AddMarker(ReadOnlySpan<byte> text)
     {
         AddDeltaTime();
-        Data.WriteByte(0xFF);
+        _data.WriteByte(0xFF);
         //Add text meta event if marker is false, marker meta even if true
-        Data.WriteByte(6);
+        _data.WriteByte(6);
         int len = text.Length;
         AddVlengthCode(len);
         //Add text itself
@@ -377,7 +377,7 @@ public class Midi
         try
         {
             text.CopyTo(buf);
-            Data.Write(buf, 0, text.Length);
+            _data.Write(buf, 0, text.Length);
         }
         finally
         {
@@ -392,7 +392,7 @@ public class Midi
     public void AddSysex(ReadOnlySpan<byte> sysexData)
     {
         AddDeltaTime();
-        Data.WriteByte(0xf0);
+        _data.WriteByte(0xf0);
         int len = sysexData.Length;
         //Actually variable length code
         AddVlengthCode(len + 1);
@@ -401,13 +401,13 @@ public class Midi
         try
         {
             sysexData.CopyTo(buf);
-            Data.Write(buf, 0, len);
+            _data.Write(buf, 0, len);
         }
         finally
         {
             ArrayPool<byte>.Shared.Return(buf);
         }
-        Data.WriteByte(0xf7);
+        _data.WriteByte(0xf7);
     }
 
     /// <summary>
@@ -422,11 +422,11 @@ public class Midi
         byte t3 = (byte)(t >> 16);
 
         AddDeltaTime();
-        Data.WriteByte(0xff);
-        Data.WriteByte(0x51);
-        Data.WriteByte(0x03);
-        Data.WriteByte(t3);
-        Data.WriteByte(t2);
-        Data.WriteByte(t1);
+        _data.WriteByte(0xff);
+        _data.WriteByte(0x51);
+        _data.WriteByte(0x03);
+        _data.WriteByte(t3);
+        _data.WriteByte(t2);
+        _data.WriteByte(t1);
     }
 }

@@ -6,11 +6,11 @@ namespace GbaMus;
 /// </summary>
 public enum MidiEventType
 {
-    NOTEOFF = 8,
-    NOTEON = 9,
-    NOTEAFT = 10,
-    CONTROLLER = 11,
-    PCHANGE = 12,
-    CHNAFT = 13,
-    PITCHBEND = 14
+    Noteoff = 8,
+    Noteon = 9,
+    Noteaft = 10,
+    Controller = 11,
+    Pchange = 12,
+    Chnaft = 13,
+    Pitchbend = 14
 };

@@ -10,22 +10,22 @@ public class GbaInstr
     /// <summary>
     /// Current instrument index.
     /// </summary>
-    private int CurInstIndex;
+    private int _curInstIndex;
 
     /// <summary>
     /// Contains pointers to instruments within GBA file, their position is the # of instrument in the SF2
     /// </summary>
-    private readonly Dictionary<InstData, int> InstMap;
+    private readonly Dictionary<InstData, int> _instMap;
 
     /// <summary>
     /// Related sf2 file.
     /// </summary>
-    private readonly Sf2 Sf2;
+    private readonly Sf2 _sf2;
 
     /// <summary>
     /// Related samples class.
     /// </summary>
-    private readonly GbaSamples Samples;
+    private readonly GbaSamples _samples;
 
     /// <summary>
     /// Initializes a new instance of <see cref="GbaInstr"/>.
@@ -33,10 +33,10 @@ public class GbaInstr
     /// <param name="sf2">Related soundfont.</param>
     public GbaInstr(Sf2 sf2)
     {
-        CurInstIndex = 0;
-        InstMap = new Dictionary<InstData, int>();
-        Sf2 = sf2;
-        Samples = new GbaSamples(sf2);
+        _curInstIndex = 0;
+        _instMap = new Dictionary<InstData, int>();
+        _sf2 = sf2;
+        _samples = new GbaSamples(sf2);
     }
 
     /// <summary>
@@ -57,7 +57,7 @@ public class GbaInstr
             // and adds "attack" to envelope every time the engine is called
             double attTime = 256 / 60.0 / attack;
             double att = 1200 * Math.Log(attTime, 2);
-            Sf2.AddNewInstGenerator(SfGenerator.AttackVolEnv, (ushort)att);
+            _sf2.AddNewInstGenerator(SfGenerator.AttackVolEnv, (ushort)att);
         }
         if (sustain != 0xFF)
         {
@@ -67,19 +67,19 @@ public class GbaInstr
             // Special case where attenuation is infinite -> use max value
             else sus = 1000;
 
-            Sf2.AddNewInstGenerator(SfGenerator.SustainVolEnv, (ushort)sus);
+            _sf2.AddNewInstGenerator(SfGenerator.SustainVolEnv, (ushort)sus);
 
             double decTime = Math.Log(256.0) / (Math.Log(256) - Math.Log(decay)) / 60.0;
             decTime *= 10 / Math.Log(256);
             double dec = 1200 * Math.Log(decTime, 2);
-            Sf2.AddNewInstGenerator(SfGenerator.DecayVolEnv, (ushort)dec);
+            _sf2.AddNewInstGenerator(SfGenerator.DecayVolEnv, (ushort)dec);
         }
 
         if (release != 0x00)
         {
             double relTime = Math.Log(256.0) / (Math.Log(256) - Math.Log(release)) / 60.0;
             double rel = 1200 * Math.Log(relTime, 2);
-            Sf2.AddNewInstGenerator(SfGenerator.ReleaseVolEnv, (ushort)rel);
+            _sf2.AddNewInstGenerator(SfGenerator.ReleaseVolEnv, (ushort)rel);
         }
     }
 
@@ -106,7 +106,7 @@ public class GbaInstr
             // and adds "attack" to envelope every time the engine is called
             double attTime = attack / 5.0;
             double att = 1200 * Math.Log(attTime, 2);
-            Sf2.AddNewInstGenerator(SfGenerator.AttackVolEnv, (ushort)att);
+            _sf2.AddNewInstGenerator(SfGenerator.AttackVolEnv, (ushort)att);
         }
 
         if (sustain != 15)
@@ -117,18 +117,18 @@ public class GbaInstr
             // Special case where attenuation is infinite -> use max value
             else sus = 1000;
 
-            Sf2.AddNewInstGenerator(SfGenerator.SustainVolEnv, (ushort)sus);
+            _sf2.AddNewInstGenerator(SfGenerator.SustainVolEnv, (ushort)sus);
 
             double decTime = decay / 5.0;
             double dec = 1200 * Math.Log(decTime + 1, 2);
-            Sf2.AddNewInstGenerator(SfGenerator.DecayVolEnv, (ushort)dec);
+            _sf2.AddNewInstGenerator(SfGenerator.DecayVolEnv, (ushort)dec);
         }
 
         if (release != 0)
         {
             double relTime = release / 5.0;
             double rel = 1200 * Math.Log(relTime, 2);
-            Sf2.AddNewInstGenerator(SfGenerator.ReleaseVolEnv, (ushort)rel);
+            _sf2.AddNewInstGenerator(SfGenerator.ReleaseVolEnv, (ushort)rel);
         }
     }
 
@@ -141,7 +141,7 @@ public class GbaInstr
     public int BuildSampledInstrument(Stream stream, InstData inst)
     {
         // Do nothing if this instrument already exists !
-        if (InstMap.TryGetValue(inst, out int v)) return v;
+        if (_instMap.TryGetValue(inst, out int v)) return v;
 
         // The flag is set if no scaling should be done if the instrument type is 8
         bool noScale = (inst.Word0 & 0xff) == 0x08;
@@ -154,26 +154,26 @@ public class GbaInstr
         bool loopFlag = stream.ReadByte() == 0x40;
 
         // Build pointed sample
-        int sampleIndex = Samples.BuildSample(stream, samplePointer);
+        int sampleIndex = _samples.BuildSample(stream, samplePointer);
 
         // Instrument's name
         string name = $"sample @0x{samplePointer:x}";
 
         // Create instrument bag
-        Sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
-        Sf2.AddNewInstBag();
+        _sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
+        _sf2.AddNewInstBag();
 
         // Add generator to prevent scaling if required
         if (noScale)
-            Sf2.AddNewInstGenerator(SfGenerator.ScaleTuning, 0);
+            _sf2.AddNewInstGenerator(SfGenerator.ScaleTuning, 0);
 
         GenerateAdsrGenerators(inst.Word2);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, (ushort)(loopFlag ? 1 : 0));
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sampleIndex);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, (ushort)(loopFlag ? 1 : 0));
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sampleIndex);
 
         // Add instrument to list
-        InstMap[inst] = CurInstIndex;
-        return CurInstIndex++;
+        _instMap[inst] = _curInstIndex;
+        return _curInstIndex++;
     }
 
     /// <summary>
@@ -185,14 +185,14 @@ public class GbaInstr
     public int BuildEveryKeysplitInstrument(Stream stream, InstData inst)
     {
         // Do nothing if this instrument already exists !
-        if (InstMap.TryGetValue(inst, out int v)) return v;
+        if (_instMap.TryGetValue(inst, out int v)) return v;
 
         // I'm sorry for doing a dumb copy/pase of the routine right above
         // But there was too much differences to handles to practically handle it with flags
         // therefore I didn't really had a choice.
         uint baseAddress = inst.Word1 & 0x3ffffff;
         string name = $"EveryKeySplit @0x{baseAddress:x}";
-        Sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
+        _sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
 
         // Loop through all keys
         for (int key = 0; key < 128; key++)
@@ -235,23 +235,23 @@ public class GbaInstr
                             uint pitch = stream.ReadUInt32LittleEndian();
 
                             // Build pointed sample
-                            sampleIndex = Samples.BuildSample(stream, samplePointer);
+                            sampleIndex = _samples.BuildSample(stream, samplePointer);
 
                             // Add a bag for this key
-                            Sf2.AddNewInstBag();
+                            _sf2.AddNewInstBag();
                             GenerateAdsrGenerators(adsr);
                             // Add generator to prevent scaling if required
                             if (noScale)
-                                Sf2.AddNewInstGenerator(SfGenerator.ScaleTuning, 0);
+                                _sf2.AddNewInstGenerator(SfGenerator.ScaleTuning, 0);
 
                             // Compute base note and fine tune from pitch
-                            double deltaNote = 12.0 * Math.Log(Sf2.DefaultSampleRate * 1024.0 / pitch, 2);
+                            double deltaNote = 12.0 * Math.Log(_sf2.DefaultSampleRate * 1024.0 / pitch, 2);
                             int rootkey = (int)(60 + Math.Round(deltaNote));
 
                             // Override root key with the value we need
-                            Sf2.AddNewInstGenerator(SfGenerator.OverridingRootKey, (ushort)(rootkey - keynum + key));
+                            _sf2.AddNewInstGenerator(SfGenerator.OverridingRootKey, (ushort)(rootkey - keynum + key));
                             // Key range is only a single key (obviously)
-                            Sf2.AddNewInstGenerator(SfGenerator.KeyRange, (byte)key, (byte)key);
+                            _sf2.AddNewInstGenerator(SfGenerator.KeyRange, (byte)key, (byte)key);
                         }
                         break;
 
@@ -268,11 +268,11 @@ public class GbaInstr
                                 throw new InvalidDataException("Invalid note kind");
 
                             // Build corresponding sample
-                            sampleIndex = Samples.BuildNoiseSample(metalFlag, keynum);
-                            Sf2.AddNewInstBag();
+                            sampleIndex = _samples.BuildNoiseSample(metalFlag, keynum);
+                            _sf2.AddNewInstBag();
                             GeneratePsgAdsrGenerators(adsr);
-                            Sf2.AddNewInstGenerator(SfGenerator.OverridingRootKey, (ushort)key);
-                            Sf2.AddNewInstGenerator(SfGenerator.KeyRange, (byte)key, (byte)key);
+                            _sf2.AddNewInstGenerator(SfGenerator.OverridingRootKey, (ushort)key);
+                            _sf2.AddNewInstGenerator(SfGenerator.KeyRange, (byte)key, (byte)key);
                         }
                         break;
 
@@ -281,10 +281,10 @@ public class GbaInstr
                 }
 
                 if (panning != 0)
-                    Sf2.AddNewInstGenerator(SfGenerator.Pan, (ushort)((panning - 192) * (500 / 128.0)));
+                    _sf2.AddNewInstGenerator(SfGenerator.Pan, (ushort)((panning - 192) * (500 / 128.0)));
                 // Same as a normal sample
-                Sf2.AddNewInstGenerator(SfGenerator.SampleModes, (ushort)(loopFlag ? 1 : 0));
-                Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sampleIndex);
+                _sf2.AddNewInstGenerator(SfGenerator.SampleModes, (ushort)(loopFlag ? 1 : 0));
+                _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sampleIndex);
             }
             catch
             {
@@ -292,8 +292,8 @@ public class GbaInstr
             }
         }
         // Add instrument to list
-        InstMap[inst] = CurInstIndex;
-        return CurInstIndex++;
+        _instMap[inst] = _curInstIndex;
+        return _curInstIndex++;
     }
 
     /// <summary>
@@ -305,7 +305,7 @@ public class GbaInstr
     public int BuildKeysplitInstrument(Stream stream, InstData inst)
     {
         // Do nothing if this instrument already exists !
-        if (InstMap.TryGetValue(inst, out int v)) return v;
+        if (_instMap.TryGetValue(inst, out int v)) return v;
 
         uint basePointer = inst.Word1 & 0x3ffffff;
         uint keyTable = inst.Word2 & 0x3ffffff;
@@ -321,7 +321,7 @@ public class GbaInstr
 
         // Add instrument to list
         string name = $"0x{basePointer:x} key split";
-        Sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
+        _sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
 
         do
         {
@@ -377,28 +377,28 @@ public class GbaInstr
                 bool loopFlag = stream.ReadByte() == 0x40;
 
                 // Build pointed sample
-                int sampleIndex = Samples.BuildSample(stream, samplePointer);
+                int sampleIndex = _samples.BuildSample(stream, samplePointer);
 
                 // Create instrument bag
-                Sf2.AddNewInstBag();
+                _sf2.AddNewInstBag();
 
                 // Add generator to prevent scaling if required
                 if (noScale)
-                    Sf2.AddNewInstGenerator(SfGenerator.ScaleTuning, 0);
+                    _sf2.AddNewInstGenerator(SfGenerator.ScaleTuning, 0);
 
                 GenerateAdsrGenerators(adsr);
                 // Particularity here : An additional bag to select the key range
-                Sf2.AddNewInstGenerator(SfGenerator.KeyRange, (byte)splitList[(int)i], (byte)(splitList[(int)(i + 1)] - 1));
-                Sf2.AddNewInstGenerator(SfGenerator.SampleModes, (ushort)(loopFlag ? 1 : 0));
-                Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sampleIndex);
+                _sf2.AddNewInstGenerator(SfGenerator.KeyRange, (byte)splitList[(int)i], (byte)(splitList[(int)(i + 1)] - 1));
+                _sf2.AddNewInstGenerator(SfGenerator.SampleModes, (ushort)(loopFlag ? 1 : 0));
+                _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sampleIndex);
             }
             catch
             {
                 // Silently continue to next key if anything bad happens
             }
         }
-        InstMap[inst] = CurInstIndex;
-        return CurInstIndex++;
+        _instMap[inst] = _curInstIndex;
+        return _curInstIndex++;
     }
 
     /// <summary>
@@ -410,7 +410,7 @@ public class GbaInstr
     public int BuildGb3Instrument(Stream stream, InstData inst)
     {
         // Do nothing if this instrument already exists !
-        if (InstMap.TryGetValue(inst, out int v)) return v;
+        if (_instMap.TryGetValue(inst, out int v)) return v;
 
         // Get sample pointer
         uint samplePointer = inst.Word1 & 0x3ffffff;
@@ -418,34 +418,34 @@ public class GbaInstr
         // Try to seek to see if the pointer is valid, if it's not then abort
         stream.Position = samplePointer;
 
-        int sample = Samples.BuildGb3Samples(stream, samplePointer);
+        int sample = _samples.BuildGb3Samples(stream, samplePointer);
 
         string name = $"GB3 @0x{samplePointer:x}";
-        Sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
+        _sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
 
         // Global zone
-        Sf2.AddNewInstBag();
+        _sf2.AddNewInstBag();
         GeneratePsgAdsrGenerators(inst.Word2);
 
-        Sf2.AddNewInstBag();
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 0, 52);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 3));
-        Sf2.AddNewInstBag();
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 53, 64);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 2));
-        Sf2.AddNewInstBag();
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 65, 76);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 1));
-        Sf2.AddNewInstBag();
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 77, 127);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sample);
+        _sf2.AddNewInstBag();
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 0, 52);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 3));
+        _sf2.AddNewInstBag();
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 53, 64);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 2));
+        _sf2.AddNewInstBag();
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 65, 76);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 1));
+        _sf2.AddNewInstBag();
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 77, 127);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sample);
 
-        InstMap[inst] = CurInstIndex;
-        return CurInstIndex++;
+        _instMap[inst] = _curInstIndex;
+        return _curInstIndex++;
     }
 
     /// <summary>
@@ -456,7 +456,7 @@ public class GbaInstr
     public int BuildPulseInstrument(InstData inst)
     {
         // Do nothing if this instrument already exists !
-        if (InstMap.TryGetValue(inst, out int v)) return v;
+        if (_instMap.TryGetValue(inst, out int v)) return v;
 
         uint dutyCycle = inst.Word1;
         // The difference between 75% and 25% duty cycles is inaudible therefore
@@ -464,37 +464,37 @@ public class GbaInstr
         if (dutyCycle == 3) dutyCycle = 1;
         if (dutyCycle > 3) throw new ArgumentException("Invalid duty cycle value");
 
-        int sample = Samples.BuildPulseSamples(dutyCycle);
+        int sample = _samples.BuildPulseSamples(dutyCycle);
         string name = $"pulse {dutyCycle}";
-        Sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
+        _sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
 
         // Global zone
-        Sf2.AddNewInstBag();
+        _sf2.AddNewInstBag();
         GeneratePsgAdsrGenerators(inst.Word2);
 
-        Sf2.AddNewInstBag();
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 0, 45);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 4));
-        Sf2.AddNewInstBag();
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 46, 57);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 3));
-        Sf2.AddNewInstBag();
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 58, 69);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 2));
-        Sf2.AddNewInstBag();
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 70, 81);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 1));
-        Sf2.AddNewInstBag();
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 82, 127);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sample);
+        _sf2.AddNewInstBag();
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 0, 45);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 4));
+        _sf2.AddNewInstBag();
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 46, 57);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 3));
+        _sf2.AddNewInstBag();
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 58, 69);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 2));
+        _sf2.AddNewInstBag();
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 70, 81);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)(sample - 1));
+        _sf2.AddNewInstBag();
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 82, 127);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sample);
 
-        InstMap[inst] = CurInstIndex;
-        return CurInstIndex++;
+        _instMap[inst] = _curInstIndex;
+        return _curInstIndex++;
     }
 
     /// <summary>
@@ -505,42 +505,42 @@ public class GbaInstr
     public int BuildNoiseInstrument(InstData inst)
     {
         // Do nothing if this instrument already exists !
-        if (InstMap.TryGetValue(inst, out int v)) return v;
+        if (_instMap.TryGetValue(inst, out int v)) return v;
 
         // 0 = normal, 1 = metallic, anything else = invalid
         if (inst.Word1 > 1) throw new ArgumentException("Invalid mode");
         bool metallic = inst.Word1 != 0;
 
         string name = metallic ? "GB metallic noise" : "GB noise";
-        Sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
+        _sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
 
         // Global zone
-        Sf2.AddNewInstBag();
+        _sf2.AddNewInstBag();
         GeneratePsgAdsrGenerators(inst.Word2);
 
-        Sf2.AddNewInstBag();
-        int sample42 = Samples.BuildNoiseSample(metallic, 42);
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 0, 42);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sample42);
+        _sf2.AddNewInstBag();
+        int sample42 = _samples.BuildNoiseSample(metallic, 42);
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 0, 42);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sample42);
 
         for (int key = 43; key <= 77; key++)
         {
-            Sf2.AddNewInstBag();
-            int sample = Samples.BuildNoiseSample(metallic, key);
-            Sf2.AddNewInstGenerator(SfGenerator.KeyRange, (byte)key, (byte)key);
-            Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-            Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sample);
+            _sf2.AddNewInstBag();
+            int sample = _samples.BuildNoiseSample(metallic, key);
+            _sf2.AddNewInstGenerator(SfGenerator.KeyRange, (byte)key, (byte)key);
+            _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+            _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sample);
         }
 
-        Sf2.AddNewInstBag();
-        int sample78 = Samples.BuildNoiseSample(metallic, 78);
-        Sf2.AddNewInstGenerator(SfGenerator.KeyRange, 78, 127);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
-        Sf2.AddNewInstGenerator(SfGenerator.ScaleTuning, 0);
-        Sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sample78);
+        _sf2.AddNewInstBag();
+        int sample78 = _samples.BuildNoiseSample(metallic, 78);
+        _sf2.AddNewInstGenerator(SfGenerator.KeyRange, 78, 127);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleModes, 1);
+        _sf2.AddNewInstGenerator(SfGenerator.ScaleTuning, 0);
+        _sf2.AddNewInstGenerator(SfGenerator.SampleId, (ushort)sample78);
 
-        InstMap[inst] = CurInstIndex;
-        return CurInstIndex++;
+        _instMap[inst] = _curInstIndex;
+        return _curInstIndex++;
     }
 }

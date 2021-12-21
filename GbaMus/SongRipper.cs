@@ -10,22 +10,22 @@ public class SongRipper
     private class Note
     {
         private SongRipper _songRipper;
-        private Midi midi;
-        private int counter;
-        private int key;
-        private int vel;
-        private int chn;
-        private bool event_made;
+        private Midi _midi;
+        private int _counter;
+        private int _key;
+        private int _vel;
+        private int _chn;
+        private bool _eventMade;
 
         // Tick counter, if it becomes zero
         // then create key off event
         // this function returns "true" when the note should be freed from memory
-        private bool tick()
+        private bool Tick()
         {
-            if (counter <= 0 || --counter != 0) return false;
-            midi.AddNoteOff(chn, (byte)key, (byte)vel);
-            _songRipper.stop_lfo(chn);
-            _songRipper.simultaneous_notes_ctr--;
+            if (_counter <= 0 || --_counter != 0) return false;
+            _midi.AddNoteOff(_chn, (byte)_key, (byte)_vel);
+            _songRipper.StopLfo(_chn);
+            _songRipper._simultaneousNotesCtr--;
             return true;
         }
 
@@ -33,214 +33,206 @@ public class SongRipper
         public Note(SongRipper songRipper, Midi midi, int chn, int len, int key, int vel)
         {
             _songRipper = songRipper;
-            this.midi = midi;
-            this.chn = chn;
-            counter = len;
-            this.key = key;
-            this.vel = vel;
-            event_made = false;
+            _midi = midi;
+            _chn = chn;
+            _counter = len;
+            _key = key;
+            _vel = vel;
+            _eventMade = false;
 
-            songRipper.start_lfo(chn);
-            songRipper.add_simultaneous_note();
+            songRipper.StartLfo(chn);
+            songRipper.AddSimultaneousNote();
         }
 
 
-        internal bool countdown_is_over()
+        internal bool CountdownIsOver()
         {
-            return tick() || counter < 0;
+            return Tick() || _counter < 0;
         }
 
-        internal void make_note_on_event()
+        internal void MakeNoteOnEvent()
         {
-            if (event_made) return;
-            midi.AddNoteOn(chn, (byte)key, (byte)vel);
-            event_made = true;
+            if (_eventMade) return;
+            _midi.AddNoteOn(_chn, (byte)_key, (byte)_vel);
+            _eventMade = true;
         }
     }
 
-    private uint[] track_ptr = new uint[16];
-    private byte[] last_cmd = new byte[16];
-    private byte[] last_key = new byte[16];
-    private byte[] last_vel = new byte[16];
-    private int[] counter = new int[16];
-    private uint[] return_ptr = new uint[16];
-    private int[] key_shift = new int[16];
-    private bool[] return_flag = new bool[16];
-    private bool[] track_completed = new bool[16];
-    static bool end_flag = false;
-    static bool loop_flag = false;
-    private uint loop_adr;
+    private uint[] _trackPtr = new uint[16];
+    private byte[] _lastCmd = new byte[16];
+    private byte[] _lastKey = new byte[16];
+    private byte[] _lastVel = new byte[16];
+    private int[] _counter = new int[16];
+    private uint[] _returnPtr = new uint[16];
+    private int[] _keyShift = new int[16];
+    private bool[] _returnFlag = new bool[16];
+    private bool[] _trackCompleted = new bool[16];
+    private bool s_endFlag;
+    private bool s_loopFlag;
+    private uint _loopAdr;
 
-    private int[] lfo_delay_ctr = new int[16];
-    private int[] lfo_delay = new int[16];
-    private int[] lfo_depth = new int[16];
-    private int[] lfo_type = new int[16];
-    private bool[] lfo_flag = new bool[16];
-    private bool[] lfo_hack = new bool[16];
+    private int[] _lfoDelayCtr = new int[16];
+    private int[] _lfoDelay = new int[16];
+    private int[] _lfoDepth = new int[16];
+    private int[] _lfoType = new int[16];
+    private bool[] _lfoFlag = new bool[16];
+    private bool[] _lfoHack = new bool[16];
 
-    private uint simultaneous_notes_ctr = 0;
-    private uint simultaneous_notes_max = 0;
+    private uint _simultaneousNotesCtr;
+    private uint _simultaneousNotesMax;
 
-    private List<Note> notes_playing;
+    private List<Note> _notesPlaying;
 
-    private int bank_number;
-    private bool bank_used = false;
-    private bool rc = false;
-    private bool gs = false;
-    private bool xg = false;
-    private bool lv = false;
-    private bool sv = false;
+    private int _bankNumber;
+    private bool _bankUsed;
+    private bool _rc;
+    private bool _gs;
+    private bool _xg;
+    private bool _lv;
+    private bool _sv;
 
-    private Midi midi;
-    private Stream inGBA;
+    private int _trackAmnt;
+    private Settings _settings;
+    private bool _processed;
 
-    private SongRipper()
+    private Midi _midi;
+    private Stream _inGba;
+
+    private static void PrintInstructions(TextWriter? textWriter)
     {
-        notes_playing = new List<Note>();
-        midi = new Midi(24);
-        inGBA = null!;
-    }
-
-    private static void print_instructions()
-    {
-        Console.WriteLine("Rips sequence data from a GBA game using Sappy sound engine to MIDI (.mid) format.");
-        Console.WriteLine();
-        Console.WriteLine("Usage: song_riper infile.gba outfile.mid song_address [-b1 -gm -gs -xg]");
-        Console.WriteLine("-b : Bank: forces all patches to be in the specified bank (0-127).");
-        Console.WriteLine("In General MIDI, channel 10 is reserved for drums.");
-        Console.WriteLine("Unfortunately, we do not want to use any \"drums\" in the output file.");
-        Console.WriteLine("I have 3 modes to fix this problem.");
-        Console.WriteLine("-rc : Rearrange Channels. This will avoid using the channel 10, and use it at last ressort only if all 16 channels should be used");
-        Console.WriteLine("-gs : This will send a GS system exclusive message to tell the player channel 10 is not drums.");
-        Console.WriteLine("-xg : This will send a XG system exclusive message, and force banks number which will disable \"drums\".");
-        Console.WriteLine("-lv : Linearise volume and velocities. This should be used to have the output \"sound\" like the original song, but shouldn't be used to get an exact dump of sequence data.");
-        Console.WriteLine("-sv : Simulate vibrato. This will insert controllers in real time to simulate a vibrato, instead of just when commands are given. Like -lv, this should be used to have the output \"sound\" like the original song, but shouldn't be used to get an exact dump of sequence data.");
-        Console.WriteLine();
-        Console.WriteLine("It is possible, but not recommended, to use more than one of these flags at a time.");
+        textWriter?.WriteLine("Rips sequence data from a GBA game using Sappy sound engine to MIDI (.mid) format.");
+        textWriter?.WriteLine();
+        textWriter?.WriteLine("Usage: song_riper infile.gba outfile.mid song_address [-b1 -gm -gs -xg]");
+        textWriter?.WriteLine("-b : Bank: forces all patches to be in the specified bank (0-127).");
+        textWriter?.WriteLine("In General MIDI, channel 10 is reserved for drums.");
+        textWriter?.WriteLine("Unfortunately, we do not want to use any \"drums\" in the output file.");
+        textWriter?.WriteLine("I have 3 modes to fix this problem.");
+        textWriter?.WriteLine("-rc : Rearrange Channels. This will avoid using the channel 10, and use it at last ressort only if all 16 channels should be used");
+        textWriter?.WriteLine("-gs : This will send a GS system exclusive message to tell the player channel 10 is not drums.");
+        textWriter?.WriteLine("-xg : This will send a XG system exclusive message, and force banks number which will disable \"drums\".");
+        textWriter?.WriteLine("-lv : Linearise volume and velocities. This should be used to have the output \"sound\" like the original song, but shouldn't be used to get an exact dump of sequence data.");
+        textWriter?.WriteLine("-sv : Simulate vibrato. This will insert controllers in real time to simulate a vibrato, instead of just when commands are given. Like -lv, this should be used to have the output \"sound\" like the original song, but shouldn't be used to get an exact dump of sequence data.");
+        textWriter?.WriteLine();
+        textWriter?.WriteLine("It is possible, but not recommended, to use more than one of these flags at a time.");
     }
 
 
-    private void add_simultaneous_note()
+    private void AddSimultaneousNote()
     {
         // Update simultaneous notes max.
-        if (++simultaneous_notes_ctr > simultaneous_notes_max)
-            simultaneous_notes_max = simultaneous_notes_ctr;
+        if (++_simultaneousNotesCtr > _simultaneousNotesMax)
+            _simultaneousNotesMax = _simultaneousNotesCtr;
     }
 
     // LFO logic on tick
-    private void process_lfo(int track)
+    private void ProcessLfo(int track)
     {
-        if (sv && lfo_delay_ctr[track] != 0)
+        if (_sv && _lfoDelayCtr[track] != 0)
         {
             // Decrease counter if it's value was nonzero
-            if (--lfo_delay_ctr[track] == 0)
+            if (--_lfoDelayCtr[track] == 0)
             {
                 // If 1->0 transition we need to add a signal to start the LFO
-                if (lfo_type[track] == 0)
+                if (_lfoType[track] == 0)
                     // Send a controller 1 if pitch LFO
-                    midi.AddController(track, 1, (byte)(lfo_depth[track] < 16 ? lfo_depth[track] * 8 : 127));
+                    _midi.AddController(track, 1, (byte)(_lfoDepth[track] < 16 ? _lfoDepth[track] * 8 : 127));
                 else
                     // Send a channel aftertouch otherwise
-                    midi.AddChanaft(track, (byte)(lfo_depth[track] < 16 ? lfo_depth[track] * 8 : 127));
-                lfo_flag[track] = true;
+                    _midi.AddChanaft(track, (byte)(_lfoDepth[track] < 16 ? _lfoDepth[track] * 8 : 127));
+                _lfoFlag[track] = true;
             }
         }
     }
 
-    private void start_lfo(int track)
+    private void StartLfo(int track)
     {
         // Reset down delay counter to its initial value
-        if (sv && lfo_delay[track] != 0)
-            lfo_delay_ctr[track] = lfo_delay[track];
+        if (_sv && _lfoDelay[track] != 0)
+            _lfoDelayCtr[track] = _lfoDelay[track];
     }
 
-    private void stop_lfo(int track)
+    private void StopLfo(int track)
     {
         // Cancel a LFO if it was playing,
-        if (sv && lfo_flag[track])
+        if (_sv && _lfoFlag[track])
         {
-            if (lfo_type[track] == 0)
-                midi.AddController(track, 1, 0);
+            if (_lfoType[track] == 0)
+                _midi.AddController(track, 1, 0);
             else
-                midi.AddChanaft(track, 0);
-            lfo_flag[track] = false;
+                _midi.AddChanaft(track, 0);
+            _lfoFlag[track] = false;
         }
         else
-            lfo_delay_ctr[track] = 0; // cancel delay counter if it wasn't playing
+            _lfoDelayCtr[track] = 0; // cancel delay counter if it wasn't playing
     }
 
-    private bool tick(int track_amnt)
+    private bool Tick(int trackAmnt)
     {
         // Tick all playing notes, and remove notes which
         // have been keyed off OR which are infinite length from the list
-        notes_playing.RemoveAll(v => v.countdown_is_over());
+        _notesPlaying.RemoveAll(v => v.CountdownIsOver());
 
         // Process all tracks
-        for (int track = 0; track < track_amnt; track++)
+        for (int track = 0; track < trackAmnt; track++)
         {
-            counter[track]--;
+            _counter[track]--;
             // Process events until counter non-null or pointer null
             // This might not be executed if counter both are non null.
-            while (track_ptr[track] != 0 && !end_flag && counter[track] <= 0)
+            while (_trackPtr[track] != 0 && !s_endFlag && _counter[track] <= 0)
             {
                 // Check if we're at loop start point
-                if (track == 0 && loop_flag && !return_flag[0] && !track_completed[0] && track_ptr[0] == loop_adr)
-                    midi.AddMarker(Encoding.ASCII.GetBytes("loopStart"));
+                if (track == 0 && s_loopFlag && !_returnFlag[0] && !_trackCompleted[0] && _trackPtr[0] == _loopAdr)
+                    _midi.AddMarker(Encoding.ASCII.GetBytes("loopStart"));
 
-                process_event(track);
+                ProcessEvent(track);
             }
         }
 
-        for (int track = 0; track < track_amnt; track++)
+        for (int track = 0; track < trackAmnt; track++)
         {
-            process_lfo(track);
+            ProcessLfo(track);
         }
 
         // Compute if all still active channels are completely decoded
-        bool all_completed_flag = true;
-        for (int i = 0; i < track_amnt; i++)
-            all_completed_flag &= track_completed[i];
+        bool allCompletedFlag = true;
+        for (int i = 0; i < trackAmnt; i++)
+            allCompletedFlag &= _trackCompleted[i];
 
         // If everything is completed, the main program should quit its loop
-        if (all_completed_flag) return false;
+        if (allCompletedFlag) return false;
 
         // Make note on events for this tick
         //(it's important they are made after all other events)
-        foreach (var p in notes_playing)
-            p.make_note_on_event();
+        foreach (var p in _notesPlaying)
+            p.MakeNoteOnEvent();
 
         // Increment MIDI time
-        midi.Clock();
+        _midi.Clock();
         return true;
     }
 
-    private uint get_GBA_pointer()
-    {
-        return inGBA.ReadUInt32LittleEndian() & 0x3FFFFFF;
-    }
-
     // Length table for notes and rests
-    private static readonly int[] lenTbl = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 28, 30, 32, 36, 40, 42, 44, 48, 52, 54, 56, 60, 64, 66, 68, 72, 76, 78, 80, 84, 88, 90, 92, 96 };
+    private static readonly int[] s_lenTbl = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 28, 30, 32, 36, 40, 42, 44, 48, 52, 54, 56, 60, 64, 66, 68, 72, 76, 78, 80, 84, 88, 90, 92, 96 };
 
-    private void process_event(int track)
+    private void ProcessEvent(int track)
     {
-        inGBA.Position = track_ptr[track];
+        _inGba.Position = _trackPtr[track];
         // Read command
-        byte command = inGBA.ReadUInt8LittleEndian();
+        byte command = _inGba.ReadUInt8LittleEndian();
 
-        track_ptr[track]++;
+        _trackPtr[track]++;
         byte arg1;
         // Repeat last command, the byte read was in fact the first argument
         if (command < 0x80)
         {
             arg1 = command;
-            command = last_cmd[track];
+            command = _lastCmd[track];
         }
 
         // Delta time command
         else if (command <= 0xb0)
         {
-            counter[track] = lenTbl[command - 0x80];
+            _counter[track] = s_lenTbl[command - 0x80];
             return;
         }
 
@@ -248,41 +240,41 @@ public class SongRipper
         else if (command == 0xb1)
         {
             // Null pointer
-            track_ptr[track] = 0;
-            track_completed[track] = true;
+            _trackPtr[track] = 0;
+            _trackCompleted[track] = true;
             return;
         }
 
         // Jump command
         else if (command == 0xb2)
         {
-            track_ptr[track] = get_GBA_pointer();
+            _trackPtr[track] = _inGba.GetGbaPointer();
 
             // detect the end track
-            track_completed[track] = true;
+            _trackCompleted[track] = true;
             return;
         }
 
         // Call command
         else if (command == 0xb3)
         {
-            uint addr = get_GBA_pointer();
+            uint addr = _inGba.GetGbaPointer();
 
             // Return address for the track
-            return_ptr[track] = track_ptr[track] + 4;
+            _returnPtr[track] = _trackPtr[track] + 4;
             // Now points to called address
-            track_ptr[track] = addr;
-            return_flag[track] = true;
+            _trackPtr[track] = addr;
+            _returnFlag[track] = true;
             return;
         }
 
         // Return command
         else if (command == 0xb4)
         {
-            if (return_flag[track])
+            if (_returnFlag[track])
             {
-                track_ptr[track] = return_ptr[track];
-                return_flag[track] = false;
+                _trackPtr[track] = _returnPtr[track];
+                _returnFlag[track] = false;
             }
             return;
         }
@@ -290,68 +282,68 @@ public class SongRipper
         // Tempo change
         else if (command == 0xbb)
         {
-            int tempo = 2 * inGBA.ReadUInt8LittleEndian();
-            track_ptr[track]++;
-            midi.AddTempo(tempo);
+            int tempo = 2 * _inGba.ReadUInt8LittleEndian();
+            _trackPtr[track]++;
+            _midi.AddTempo(tempo);
             return;
         }
 
         else
         {
             // Normal command
-            last_cmd[track] = command;
+            _lastCmd[track] = command;
             // Need argument
-            arg1 = inGBA.ReadUInt8LittleEndian();
-            track_ptr[track]++;
+            arg1 = _inGba.ReadUInt8LittleEndian();
+            _trackPtr[track]++;
         }
 
         // Note on with specified length command
         if (command >= 0xd0)
         {
-            int key, vel, len_ofs = 0;
+            int key, vel, lenOfs = 0;
             // Is arg1 a key value ?
             if (arg1 < 0x80)
             {
                 // Yes -> use new key value
                 key = arg1;
-                last_key[track] = (byte)key;
+                _lastKey[track] = (byte)key;
 
-                byte arg2 = inGBA.ReadUInt8LittleEndian();
+                byte arg2 = _inGba.ReadUInt8LittleEndian();
                 // Is arg2 a velocity ?
-                byte arg3 = (inGBA.ReadUInt8LittleEndian());
+                byte arg3 = (_inGba.ReadUInt8LittleEndian());
                 if (arg2 < 0x80)
                 {
                     // Yes -> use new velocity value
                     vel = arg2;
-                    last_vel[track] = (byte)vel;
-                    track_ptr[track]++;
+                    _lastVel[track] = (byte)vel;
+                    _trackPtr[track]++;
 
                     // Is there a length offset ?
                     if (arg3 < 0x80)
                     {
                         // Yes -> read it and increment pointer
-                        len_ofs = arg3;
-                        track_ptr[track]++;
+                        lenOfs = arg3;
+                        _trackPtr[track]++;
                     }
                 }
                 else
                 {
                     // No -> use previous velocity value
-                    vel = last_vel[track];
+                    vel = _lastVel[track];
                 }
             }
             else
             {
                 // No -> use last value
-                key = last_key[track];
-                vel = last_vel[track];
-                track_ptr[track]--; // Seek back, as arg 1 is unused and belong to next event !
+                key = _lastKey[track];
+                vel = _lastVel[track];
+                _trackPtr[track]--; // Seek back, as arg 1 is unused and belong to next event !
             }
 
             // Linearise velocity if needed
-            if (lv) vel = (int)Math.Sqrt(127.0 * vel);
+            if (_lv) vel = (int)Math.Sqrt(127.0 * vel);
 
-            notes_playing.Insert(0, new Note(this, midi, track, lenTbl[command - 0xd0 + 1] + len_ofs, key + key_shift[track], vel));
+            _notesPlaying.Insert(0, new Note(this, _midi, track, s_lenTbl[command - 0xd0 + 1] + lenOfs, key + _keyShift[track], vel));
             return;
         }
 
@@ -360,103 +352,103 @@ public class SongRipper
         {
             // Key shift
             case 0xbc:
-                key_shift[track] = arg1;
+                _keyShift[track] = arg1;
                 return;
 
             // Set instrument
             case 0xbd:
-                if (bank_used)
+                if (_bankUsed)
                 {
-                    if (!xg)
-                        midi.AddController(track, 0, (byte)bank_number);
+                    if (!_xg)
+                        _midi.AddController(track, 0, (byte)_bankNumber);
                     else
                     {
-                        midi.AddController(track, 0, (byte)(bank_number >> 7));
-                        midi.AddController(track, 32, (byte)(bank_number & 0x7f));
+                        _midi.AddController(track, 0, (byte)(_bankNumber >> 7));
+                        _midi.AddController(track, 32, (byte)(_bankNumber & 0x7f));
                     }
                 }
-                midi.AddPChange(track, arg1);
+                _midi.AddPChange(track, arg1);
                 return;
 
             // Set volume
             case 0xbe:
                 {
                     // Linearise volume if needed
-                    int volume = lv ? (int)Math.Sqrt(127.0 * arg1) : arg1;
-                    midi.AddController(track, 7, (byte)volume);
+                    int volume = _lv ? (int)Math.Sqrt(127.0 * arg1) : arg1;
+                    _midi.AddController(track, 7, (byte)volume);
                 }
                 return;
 
             // Set panning
             case 0xbf:
-                midi.AddController(track, 10, arg1);
+                _midi.AddController(track, 10, arg1);
                 return;
 
             // Pitch bend
             case 0xc0:
-                midi.AddPitchBend(track, arg1);
+                _midi.AddPitchBend(track, arg1);
                 return;
 
             // Pitch bend range
             case 0xc1:
-                if (sv)
-                    midi.AddRpn(track, 0, arg1);
+                if (_sv)
+                    _midi.AddRpn(track, 0, arg1);
                 else
-                    midi.AddController(track, 20, arg1);
+                    _midi.AddController(track, 20, arg1);
                 return;
 
             // LFO Speed
             case 0xc2:
-                if (sv)
-                    midi.AddNrpn(track, 136, arg1);
+                if (_sv)
+                    _midi.AddNrpn(track, 136, arg1);
                 else
-                    midi.AddController(track, 21, arg1);
+                    _midi.AddController(track, 21, arg1);
                 return;
 
             // LFO delay
             case 0xc3:
-                if (sv)
-                    lfo_delay[track] = arg1;
+                if (_sv)
+                    _lfoDelay[track] = arg1;
                 else
-                    midi.AddController(track, 26, arg1);
+                    _midi.AddController(track, 26, arg1);
                 return;
 
             // LFO depth
             case 0xc4:
-                if (sv)
+                if (_sv)
                 {
-                    if (lfo_delay[track] == 0 && lfo_hack[track])
+                    if (_lfoDelay[track] == 0 && _lfoHack[track])
                     {
-                        if (lfo_type[track] == 0)
-                            midi.AddController(track, 1, (byte)(arg1 > 12 ? 127 : 10 * arg1));
+                        if (_lfoType[track] == 0)
+                            _midi.AddController(track, 1, (byte)(arg1 > 12 ? 127 : 10 * arg1));
                         else
-                            midi.AddChanaft(track, (byte)(arg1 > 12 ? 127 : 10 * arg1));
+                            _midi.AddChanaft(track, (byte)(arg1 > 12 ? 127 : 10 * arg1));
 
-                        lfo_flag[track] = true;
+                        _lfoFlag[track] = true;
                     }
-                    lfo_depth[track] = arg1;
+                    _lfoDepth[track] = arg1;
                     // I had a stupid bug with LFO inserting controllers I didn't want at the start of files
                     // So I made a terrible quick fix for it, in the mean time I can find something better to prevent it.
-                    lfo_hack[track] = true;
+                    _lfoHack[track] = true;
                 }
                 else
-                    midi.AddController(track, 1, arg1);
+                    _midi.AddController(track, 1, arg1);
                 return;
 
             // LFO type
             case 0xc5:
-                if (sv)
-                    lfo_type[track] = arg1;
+                if (_sv)
+                    _lfoType[track] = arg1;
                 else
-                    midi.AddController(track, 22, arg1);
+                    _midi.AddController(track, 22, arg1);
                 return;
 
             // Detune
             case 0xc8:
-                if (sv)
-                    midi.AddRpn(track, 1, arg1);
+                if (_sv)
+                    _midi.AddRpn(track, 1, arg1);
                 else
-                    midi.AddController(track, 24, arg1);
+                    _midi.AddController(track, 24, arg1);
                 return;
 
             // Key off
@@ -469,19 +461,19 @@ public class SongRipper
                     {
                         // Yes -> use new key value
                         key = arg1;
-                        last_key[track] = (byte)key;
+                        _lastKey[track] = (byte)key;
                     }
                     else
                     {
                         // No -> use last value
-                        key = last_key[track];
-                        vel = last_vel[track];
-                        track_ptr[track]--; // Seek back, as arg 1 is unused and belong to next event !
+                        key = _lastKey[track];
+                        vel = _lastVel[track];
+                        _trackPtr[track]--; // Seek back, as arg 1 is unused and belong to next event !
                     }
 
-                    midi.AddNoteOff(track, (byte)(key + key_shift[track]), (byte)vel);
-                    stop_lfo(track);
-                    simultaneous_notes_ctr--;
+                    _midi.AddNoteOff(track, (byte)(key + _keyShift[track]), (byte)vel);
+                    StopLfo(track);
+                    _simultaneousNotesCtr--;
                 }
                 return;
 
@@ -494,93 +486,113 @@ public class SongRipper
                     {
                         // Yes -> use new key value
                         key = arg1;
-                        last_key[track] = (byte)key;
+                        _lastKey[track] = (byte)key;
 
-                        byte arg2 = inGBA.ReadUInt8LittleEndian();
+                        byte arg2 = _inGba.ReadUInt8LittleEndian();
                         // Is arg2 a velocity ?
                         if (arg2 < 0x80)
                         {
                             // Yes -> use new velocity value
                             vel = arg2;
-                            last_vel[track] = (byte)vel;
-                            track_ptr[track]++;
+                            _lastVel[track] = (byte)vel;
+                            _trackPtr[track]++;
                         }
                         else // No -> use previous velocity value
-                            vel = last_vel[track];
+                            vel = _lastVel[track];
                     }
                     else
                     {
                         // No -> use last value
-                        key = last_key[track];
-                        vel = last_vel[track];
-                        track_ptr[track]--; // Seek back, as arg 1 is unused and belong to next event !
+                        key = _lastKey[track];
+                        vel = _lastVel[track];
+                        _trackPtr[track]--; // Seek back, as arg 1 is unused and belong to next event !
                     }
                     // Linearise velocity if needed
-                    if (lv) vel = (int)Math.Sqrt(127.0 * vel);
+                    if (_lv) vel = (int)Math.Sqrt(127.0 * vel);
 
                     // Make note of infinite length
-                    notes_playing.Insert(0, new Note(this, midi, track, -1, key + key_shift[track], vel));
+                    _notesPlaying.Insert(0, new Note(this, _midi, track, -1, key + _keyShift[track], vel));
                 }
                 return;
         }
     }
 
-
-    private uint parseArguments(string[] args)
+    private static void ParseArguments(string[] args, ref Settings settings, out string gbaFile)
     {
-        if (args.Length < 3) print_instructions();
-
-        // Open the input and output files
-        try
+        bool rc = false, gs = false, xg = false, lv = false, sv = false;
+        int bankNumber = 0;
+        bool bankUsed = false;
+        if (args.Length < 3)
         {
-            inGBA = File.OpenRead(args[0]);
-        }
-        catch
-        {
-            Console.Error.WriteLine($"Can't open file {args[0]} for reading.");
+            PrintInstructions(settings.Debug);
             throw new EnvironmentExitException(0);
         }
+
+        gbaFile = args[0];
 
         for (int i = 3; i < args.Length; i++)
         {
             if (args[i][0] == '-')
             {
-                if (args[i][1] == 'b')
+                switch (args[i][1])
                 {
-                    if (args[i].Length < 3) print_instructions();
-                    bank_number = int.Parse(args[i].Substring(2));
-                    bank_used = true;
+                    case 'b':
+                        {
+                            if (args[i].Length < 3)
+                            {
+                                PrintInstructions(settings.Debug);
+                                throw new EnvironmentExitException(0);
+                            }
+                            bankNumber = int.Parse(args[i].Substring(2));
+                            bankUsed = true;
+                            break;
+                        }
+                    case 'r' when args[i][2] == 'c':
+                        rc = true;
+                        break;
+                    case 'g' when args[i][2] == 's':
+                        gs = true;
+                        break;
+                    case 'x' when args[i][2] == 'g':
+                        xg = true;
+                        break;
+                    case 'l' when args[i][2] == 'v':
+                        lv = true;
+                        break;
+                    case 's' when args[i][2] == 'v':
+                        sv = true;
+                        break;
+                    default:
+                        PrintInstructions(settings.Debug);
+                        throw new EnvironmentExitException(0);
                 }
-                else if (args[i][1] == 'r' && args[i][2] == 'c')
-                    rc = true;
-                else if (args[i][1] == 'g' && args[i][2] == 's')
-                    gs = true;
-                else if (args[i][1] == 'x' && args[i][2] == 'g')
-                    xg = true;
-                else if (args[i][1] == 'l' && args[i][2] == 'v')
-                    lv = true;
-                else if (args[i][1] == 's' && args[i][2] == 'v')
-                    sv = true;
-                else
-                    print_instructions();
             }
             else
-                print_instructions();
+            {
+                PrintInstructions(settings.Debug);
+                throw new EnvironmentExitException(0);
+            }
         }
         // Return base address, parsed correctly in both decimal and hex
-        if (!InternalUtils.TryParseUIntHD(args[2], out uint baseAddress))
+        if (!InternalUtils.TryParseUIntHd(args[2], out uint baseAddress))
+            throw new ArgumentException("Failed to parse base address");
+        settings = settings with
         {
-            Console.WriteLine("Failed to parse base address");
-            throw new EnvironmentExitException(0);
-        }
-        return baseAddress;
+            Rc = rc,
+            Gs = gs,
+            Xg = xg,
+            Lv = lv,
+            Sv = sv,
+            BankNumber = bankUsed ? bankNumber : null,
+            BaseAddress = baseAddress
+        };
     }
 
 
     // Part 10 to normal
-    private static readonly byte[] gs_reset_sysex = { 0x41, 0x10, 0x42, 0x12, 0x40, 0x00, 0x7f, 0x00, 0x41 };
-    private static readonly byte[] part_10_normal_sysex = { 0x41, 0x10, 0x42, 0x12, 0x40, 0x10, 0x15, 0x00, 0x1b };
-    private static readonly byte[] xg_sysex = { 0x43, 0x10, 0x4C, 0x00, 0x00, 0x7E, 0x00 };
+    private static readonly byte[] s_gsResetSysex = { 0x41, 0x10, 0x42, 0x12, 0x40, 0x00, 0x7f, 0x00, 0x41 };
+    private static readonly byte[] s_part10NormalSysex = { 0x41, 0x10, 0x42, 0x12, 0x40, 0x10, 0x15, 0x00, 0x1b };
+    private static readonly byte[] s_xgSysex = { 0x43, 0x10, 0x4C, 0x00, 0x00, 0x7E, 0x00 };
 
     /// <summary>
     /// Main execution function for song ripper.
@@ -589,130 +601,241 @@ public class SongRipper
     /// <returns>Something.</returns>
     public static int Main(string[] args)
     {
-        SongRipper sr = new();
-        return sr.MainInternal(args);
+        return MainInternal(args, new Settings(Console.Out, Console.Error));
     }
 
-    private int MainInternal(string[] args)
+    private static int MainInternal(string[] args, Settings settings)
     {
-        Console.Write("GBA ROM sequence ripper (c) 2012 Bregalad");
-        uint base_address = parseArguments(args);
-
+        settings.Debug?.WriteLine("GBA ROM sequence ripper (c) 2012 Bregalad");
+        string gbaFile;
         try
         {
-            inGBA.Position = base_address;
+            ParseArguments(args, ref settings, out gbaFile);
+        }
+        catch (ArgumentException e)
+        {
+            Console.WriteLine(e.Message);
+            return -1;
+        }
+        catch (EnvironmentExitException e)
+        {
+            return e.Code;
+        }
+
+        // Open the input and output files
+        Stream inGba;
+        try
+        {
+            inGba = File.OpenRead(gbaFile);
         }
         catch
         {
-            Console.Error.WriteLine($"Can't seek to the base address 0x{base_address:x}.");
-            return 0;
+            settings.Error?.WriteLine($"Can't open file {gbaFile} for reading.");
+            throw new EnvironmentExitException(0);
         }
 
-        int track_amnt = inGBA.ReadUInt8LittleEndian();
-        if (track_amnt < 1 || track_amnt > 16)
+        SongRipper sr;
+        try
         {
-            Console.Error.WriteLine($"Invalid amount of tracks {track_amnt}! (must be 1-16).");
-            return 0;
+            sr = new SongRipper(inGba, settings);
         }
-        Console.WriteLine($"{track_amnt} tracks.");
+        catch (InvalidDataException e)
+        {
+            settings.Debug?.WriteLine(e.Message);
+            throw new EnvironmentExitException(0);
+        }
+        catch (ArgumentException e)
+        {
+            settings.Debug?.WriteLine(e.Message);
+            throw new EnvironmentExitException(0);
+        }
 
         // Open output file once we know the pointer points to correct data
         //(this avoids creating blank files when there is an error)
-        Stream outMID;
+        Stream outMid;
         try
         {
-            outMID = File.Create(args[1]);
+            outMid = File.Create(args[1]);
         }
         catch
         {
-            Console.Error.WriteLine($"Can't write to file {args[1]}.");
-            return 0;
+            settings.Error?.WriteLine($"Can't write to file {args[1]}.");
+            throw new EnvironmentExitException(0);
         }
 
-        Console.WriteLine("Converting...");
+        int instrBankAddress = sr.Process(outMid);
 
-        if (rc)
+        // Close files
+        inGba.Dispose();
+        outMid.Dispose();
+        settings.Debug?.WriteLine(" Done!");
+        return instrBankAddress;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="SongRipper"/> for the specified input file and settings.
+    /// </summary>
+    /// <param name="stream">Input stream.</param>
+    /// <param name="settings">Settings.</param>
+    /// <exception cref="ArgumentException">Thrown for bad arguments.</exception>
+    /// <exception cref="InvalidDataException">Thrown for invalid properties.</exception>
+    public SongRipper(Stream stream, Settings settings)
+    {
+        _bankNumber = settings.BankNumber ?? -1;
+        _bankUsed = settings.BankNumber.HasValue;
+        _rc = settings.Rc;
+        _gs = settings.Gs;
+        _xg = settings.Xg;
+        _lv = settings.Lv;
+        _sv = settings.Sv;
+        _settings = settings;
+        _inGba = stream;
+        _notesPlaying = new List<Note>();
+        _midi = new Midi(24);
+        if (_inGba.Length < settings.BaseAddress)
+            throw new ArgumentException($"Can't seek to the base address 0x{settings.BaseAddress:x}.");
+        _inGba.Position = settings.BaseAddress;
+        int trackAmnt = _inGba.ReadUInt8LittleEndian();
+        if (trackAmnt is < 1 or > 16)
+            throw new InvalidDataException($"Invalid amount of tracks {trackAmnt}! (must be 1-16).");
+        settings.Debug?.WriteLine($"{trackAmnt} tracks.");
+        _trackAmnt = trackAmnt;
+    }
+
+    private void Reset()
+    {
+        if (!_processed)
+        {
+            _processed = true;
+            return;
+        }
+        _midi = new Midi(24);
+        _trackPtr.AsSpan().Clear();
+        _lastCmd.AsSpan().Clear();
+        _lastKey.AsSpan().Clear();
+        _counter.AsSpan().Clear();
+        _returnPtr.AsSpan().Clear();
+        _keyShift.AsSpan().Clear();
+        _returnFlag.AsSpan().Clear();
+        _trackCompleted.AsSpan().Clear();
+        s_endFlag = false;
+        s_loopFlag = false;
+        _lfoDelayCtr.AsSpan().Clear();
+        _lfoDelay.AsSpan().Clear();
+        _lfoDepth.AsSpan().Clear();
+        _lfoType.AsSpan().Clear();
+        _lfoFlag.AsSpan().Clear();
+        _lfoHack.AsSpan().Clear();
+        _simultaneousNotesCtr = 0;
+        _simultaneousNotesMax = 0;
+        _notesPlaying.Clear();
+    }
+
+    /// <summary>
+    /// Process source into output stream.
+    /// </summary>
+    /// <param name="output">Output stream.</param>
+    /// <returns>Instrument bank address.</returns>
+    public int Process(Stream output)
+    {
+        Reset();
+        _settings.Debug?.WriteLine("Converting...");
+        if (_rc)
         {
             // Make the drum channel last in the list, hopefully reducing the risk of it being used
-            midi.chanReorder[9] = 15;
+            _midi.ChanReorder[9] = 15;
             for (uint j = 10; j < 16; ++j)
-                midi.chanReorder[j] = (byte)(j - 1);
+                _midi.ChanReorder[j] = (byte)(j - 1);
         }
 
-        if (gs)
+        if (_gs)
         {
             // GS reset
-            midi.AddSysex(gs_reset_sysex);
-            midi.AddSysex(part_10_normal_sysex);
+            _midi.AddSysex(s_gsResetSysex);
+            _midi.AddSysex(s_part10NormalSysex);
         }
 
-        if (xg)
+        if (_xg)
         {
             // XG reset
-            midi.AddSysex(xg_sysex);
+            _midi.AddSysex(s_xgSysex);
         }
 
-        midi.AddMarker(Encoding.ASCII.GetBytes("Converted by SequenceRipper 2.0"));
+        _midi.AddMarker(Encoding.ASCII.GetBytes("Converted by SequenceRipper 2.0"));
 
-        inGBA.ReadUInt8LittleEndian(); // Unknown byte
-        inGBA.ReadUInt8LittleEndian(); // Priority
-        sbyte reverb = inGBA.ReadInt8LittleEndian(); // Reverb
+        _inGba.Position = _settings.BaseAddress + 1;
+        _inGba.ReadUInt8LittleEndian(); // Unknown byte
+        _inGba.ReadUInt8LittleEndian(); // Priority
+        sbyte reverb = _inGba.ReadInt8LittleEndian(); // Reverb
 
-        int instr_bank_address = (int)get_GBA_pointer();
+        int instrBankAddress = (int)_inGba.GetGbaPointer();
 
         // Read table of pointers
-        for (int i = 0; i < track_amnt; i++)
+        for (int i = 0; i < _trackAmnt; i++)
         {
-            track_ptr[i] = get_GBA_pointer();
+            _trackPtr[i] = _inGba.GetGbaPointer();
 
-            lfo_depth[i] = 0;
-            lfo_delay[i] = 0;
-            lfo_flag[i] = false;
+            _lfoDepth[i] = 0;
+            _lfoDelay[i] = 0;
+            _lfoFlag[i] = false;
 
             if (reverb < 0) // add reverb controller on all tracks
-                midi.AddController(i, 91, (byte)(lv ? (int)Math.Sqrt((reverb & 0x7f) * 127.0) : reverb & 0x7f));
+                _midi.AddController(i, 91, (byte)(_lv ? (int)Math.Sqrt((reverb & 0x7f) * 127.0) : reverb & 0x7f));
         }
 
         // Search for loop address of track #0
-        if (track_amnt > 1) // If 2 or more track, end of track is before start of track 2
-            inGBA.Position = track_ptr[1] - 9;
+        if (_trackAmnt > 1) // If 2 or more track, end of track is before start of track 2
+            _inGba.Position = _trackPtr[1] - 9;
         else
             // If only a single track, the end is before start of header data
-            inGBA.Position = base_address - 9;
+            _inGba.Position = _settings.BaseAddress - 9;
 
         // Read where in track 1 the loop starts
         for (int i = 0; i < 5; i++)
-            if (inGBA.ReadUInt8LittleEndian() == 0xb2)
+            if (_inGba.ReadUInt8LittleEndian() == 0xb2)
             {
-                loop_flag = true;
-                loop_adr = get_GBA_pointer();
+                s_loopFlag = true;
+                _loopAdr = _inGba.GetGbaPointer();
                 break;
             }
 
         // This is the main loop which will process all channels
         // until they are all inactive
         int x = 100000;
-        while (tick(track_amnt))
+        while (Tick(_trackAmnt))
         {
             if (x-- == 0)
             {
                 // Security thing to avoid infinite loop in case things goes wrong
-                Console.Write("Time out!");
+                _settings.Debug?.Write("Time out!");
                 break;
             }
         }
 
         // If a loop was detected this is its end
-        if (loop_flag) midi.AddMarker(Encoding.ASCII.GetBytes("loopEnd"));
+        if (s_loopFlag) _midi.AddMarker(Encoding.ASCII.GetBytes("loopEnd"));
 
-        Console.WriteLine($" Maximum simultaneous notes: {simultaneous_notes_max}");
+        _settings.Debug?.WriteLine($" Maximum simultaneous notes: {_simultaneousNotesMax}");
 
-        Console.Write("Dump complete. Now outputting MIDI file...");
-        midi.Write(outMID);
-        // Close files
-        inGBA.Dispose();
-        outMID.Dispose();
-        Console.WriteLine(" Done!");
-        return instr_bank_address;
+        _settings.Debug?.Write("Dump complete. Now outputting MIDI file...");
+        _midi.Write(output);
+        return instrBankAddress;
     }
+
+    /// <summary>
+    /// Settings for song ripper.
+    /// </summary>
+    /// <param name="Debug">Debug output.</param>
+    /// <param name="Error">Error output.</param>
+    /// <param name="Rc">This will avoid using the channel 10, and use it at last resort only if all 16 channels should be used.</param>
+    /// <param name="Gs">This will send a GS system exclusive message to tell the player channel 10 is not drums.</param>
+    /// <param name="Xg">This will send a XG system exclusive message, and force banks number which will disable "drums".</param>
+    /// <param name="Lv">Linearize volume and velocities. This should be used to have the output \"sound\" like the original song, but shouldn't be used to get an exact dump of sequence data.</param>
+    /// <param name="Sv">Simulate vibrato. This will insert controllers in real time to simulate a vibrato, instead of just when commands are given. Like -lv, this should be used to have the output \"sound\" like the original song, but shouldn't be used to get an exact dump of sequence data.</param>
+    /// <param name="BankNumber">Forces all patches to be in the specified bank (0-127).</param>
+    /// <param name="BaseAddress">Base address of song.</param>
+    public record Settings(TextWriter? Debug, TextWriter? Error,
+            bool Rc = false, bool Gs = false, bool Xg = false, bool Lv = false, bool Sv = false,
+            int? BankNumber = null, uint BaseAddress = 0)
+        : ToolSettings(Debug, Error);
 }

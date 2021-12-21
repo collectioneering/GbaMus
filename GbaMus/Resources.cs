@@ -5,8 +5,8 @@
 /// </summary>
 public static class Resources
 {
-    private static MemoryStream? _psgData;
-    private static MemoryStream? _goldenSunSynth;
+    private static MemoryStream? s_psgData;
+    private static MemoryStream? s_goldenSunSynth;
 
     /// <summary>
     /// Gets stream for psg_data.raw
@@ -14,11 +14,11 @@ public static class Resources
     /// <returns>psg_data.raw</returns>
     public static Stream GetPsgData()
     {
-        if (_psgData != null) return _psgData;
-        _psgData = new MemoryStream();
+        if (s_psgData != null) return s_psgData;
+        s_psgData = new MemoryStream();
         using Stream s = typeof(Resources).Assembly.GetManifestResourceStream("GbaMus.psg_data.raw") ?? throw new IOException();
-        s.CopyTo(_psgData);
-        return _psgData;
+        s.CopyTo(s_psgData);
+        return s_psgData;
     }
 
     /// <summary>
@@ -27,10 +27,10 @@ public static class Resources
     /// <returns>goldensun_synth.raw</returns>
     public static Stream GetGoldenSunSynth()
     {
-        if (_goldenSunSynth != null) return _goldenSunSynth;
-        _goldenSunSynth = new MemoryStream();
+        if (s_goldenSunSynth != null) return s_goldenSunSynth;
+        s_goldenSunSynth = new MemoryStream();
         using Stream s = typeof(Resources).Assembly.GetManifestResourceStream("GbaMus.goldensun_synth.raw") ?? throw new IOException();
-        s.CopyTo(_goldenSunSynth);
-        return _goldenSunSynth;
+        s.CopyTo(s_goldenSunSynth);
+        return s_goldenSunSynth;
     }
 }

@@ -6,8 +6,8 @@ namespace GbaMus;
 
 internal static class InternalUtils
 {
-    private static byte[] Buf8 => _buf8 ??= new byte[8];
-    [ThreadStatic] private static byte[]? _buf8;
+    private static byte[] Buf8 => s_buf8 ??= new byte[8];
+    [ThreadStatic] private static byte[]? s_buf8;
 
     public static byte ReadUInt8LittleEndian(this Stream stream)
     {
@@ -151,8 +151,13 @@ internal static class InternalUtils
         }
     }
 
-    public static bool TryParseUIntHD(string str, out uint value)
+    public static bool TryParseUIntHd(string str, out uint value)
     {
         return str.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase) ? uint.TryParse(str.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value) : uint.TryParse(str, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+    }
+
+    public static uint GetGbaPointer(this Stream stream)
+    {
+        return stream.ReadUInt32LittleEndian() & 0x3ffffff;
     }
 }

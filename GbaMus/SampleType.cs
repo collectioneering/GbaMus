@@ -6,9 +6,9 @@ namespace GbaMus;
 /// </summary>
 public enum SampleType
 {
-    UNSIGNED_8,
-    SIGNED_8,
-    SIGNED_16,
-    GAMEBOY_CH3,
-    BDPCM
+    Unsigned8,
+    Signed8,
+    Signed16,
+    GameboyCh3,
+    Bdpcm
 }

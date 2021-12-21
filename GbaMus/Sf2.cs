@@ -86,7 +86,7 @@ public sealed class Sf2 : IDisposable
     /// <param name="bank">Bank.</param>
     public void AddNewPreset(ReadOnlySpan<byte> name, ushort patch, ushort bank)
     {
-        _hydraChunk.phdrSubchunk.AddPreset(new SfPresetHeader(this, name, patch, bank));
+        _hydraChunk._phdrSubchunk.AddPreset(new SfPresetHeader(this, name, patch, bank));
     }
 
     /// <summary>
@@ -95,7 +95,7 @@ public sealed class Sf2 : IDisposable
     /// <param name="name">Instrument name.</param>
     public void AddNewInstrument(ReadOnlySpan<byte> name)
     {
-        _hydraChunk.instSubchunk.AddInstrument(new SfInst(this, name));
+        _hydraChunk._instSubchunk.AddInstrument(new SfInst(this, name));
     }
 
     /// <summary>
@@ -104,7 +104,7 @@ public sealed class Sf2 : IDisposable
     /// <remarks>Do not use this to add a preset bag.</remarks>
     public void AddNewInstBag()
     {
-        _hydraChunk.ibagSubchunk.AddBag(new SfBag(this, false));
+        _hydraChunk._ibagSubchunk.AddBag(new SfBag(this, false));
     }
 
     /// <summary>
@@ -113,7 +113,7 @@ public sealed class Sf2 : IDisposable
     /// <remarks>Do not use this to add an instrument bag.</remarks>
     public void AddNewPresetBag()
     {
-        _hydraChunk.pbagSubchunk.AddBag(new SfBag(this, true));
+        _hydraChunk._pbagSubchunk.AddBag(new SfBag(this, true));
     }
 
     /// <summary>
@@ -121,7 +121,7 @@ public sealed class Sf2 : IDisposable
     /// </summary>
     public void AddNewPresetModulator()
     {
-        _hydraChunk.pmodSubchunk.AddModulator(new SfModList(this));
+        _hydraChunk._pmodSubchunk.AddModulator(new SfModList(this));
     }
 
     /// <summary>
@@ -129,7 +129,7 @@ public sealed class Sf2 : IDisposable
     /// </summary>
     public void AddNewPresetGenerator()
     {
-        _hydraChunk.pgenSubchunk.AddGenerator(new SfGenList(this));
+        _hydraChunk._pgenSubchunk.AddGenerator(new SfGenList(this));
     }
 
     /// <summary>
@@ -139,7 +139,7 @@ public sealed class Sf2 : IDisposable
     /// <param name="value">Value.</param>
     public void AddNewPresetGenerator(SfGenerator operation, ushort value)
     {
-        _hydraChunk.pgenSubchunk.AddGenerator(new SfGenList(this, operation, new GenAmountType(value)));
+        _hydraChunk._pgenSubchunk.AddGenerator(new SfGenList(this, operation, new GenAmountType(value)));
     }
 
     /// <summary>
@@ -150,7 +150,7 @@ public sealed class Sf2 : IDisposable
     /// <param name="hi">High.</param>
     public void AddNewPresetGenerator(SfGenerator operation, byte lo, byte hi)
     {
-        _hydraChunk.pgenSubchunk.AddGenerator(new SfGenList(this, operation, new GenAmountType(lo, hi)));
+        _hydraChunk._pgenSubchunk.AddGenerator(new SfGenList(this, operation, new GenAmountType(lo, hi)));
     }
 
     /// <summary>
@@ -158,7 +158,7 @@ public sealed class Sf2 : IDisposable
     /// </summary>
     public void AddNewInstModulator()
     {
-        _hydraChunk.imodSubchunk.AddModulator(new SfModList(this));
+        _hydraChunk._imodSubchunk.AddModulator(new SfModList(this));
     }
 
     /// <summary>
@@ -166,7 +166,7 @@ public sealed class Sf2 : IDisposable
     /// </summary>
     public void AddNewInstGenerator()
     {
-        _hydraChunk.igenSubchunk.AddGenerator(new SfGenList(this));
+        _hydraChunk._igenSubchunk.AddGenerator(new SfGenList(this));
     }
 
     /// <summary>
@@ -176,7 +176,7 @@ public sealed class Sf2 : IDisposable
     /// <param name="value">Value.</param>
     public void AddNewInstGenerator(SfGenerator operation, ushort value)
     {
-        _hydraChunk.igenSubchunk.AddGenerator(new SfGenList(this, operation, new GenAmountType(value)));
+        _hydraChunk._igenSubchunk.AddGenerator(new SfGenList(this, operation, new GenAmountType(value)));
     }
 
     /// <summary>
@@ -187,7 +187,7 @@ public sealed class Sf2 : IDisposable
     /// <param name="hi">High.</param>
     public void AddNewInstGenerator(SfGenerator operation, byte lo, byte hi)
     {
-        _hydraChunk.igenSubchunk.AddGenerator(new SfGenList(this, operation, new GenAmountType(lo, hi)));
+        _hydraChunk._igenSubchunk.AddGenerator(new SfGenList(this, operation, new GenAmountType(lo, hi)));
     }
 
     /// <summary>
@@ -203,7 +203,7 @@ public sealed class Sf2 : IDisposable
     /// <param name="pitchCorrection">Pitch correction.</param>
     public void AddNewSampleHeader(ReadOnlySpan<byte> name, uint start, uint end, uint startLoop, uint endLoop, uint sampleRate, sbyte originalPitch, sbyte pitchCorrection)
     {
-        _hydraChunk.shdrSubchunk.AddSample(new SfSample(this, name, start, end, startLoop, endLoop, sampleRate, originalPitch, pitchCorrection));
+        _hydraChunk._shdrSubchunk.AddSample(new SfSample(this, name, start, end, startLoop, endLoop, sampleRate, originalPitch, pitchCorrection));
     }
 
     /// <summary>
@@ -222,7 +222,7 @@ public sealed class Sf2 : IDisposable
     public void AddNewSample(Stream stream, SampleType type, ReadOnlySpan<byte> name, uint pointer, uint size, bool loopFlag,
         uint loopPos, sbyte originalPitch, sbyte pitchCorrection, uint sampleRate)
     {
-        uint dirOffset = _sdtaListChunk.smplSubchunk.AddSample(stream, type, pointer, size, loopFlag, loopPos);
+        uint dirOffset = _sdtaListChunk._smplSubchunk.AddSample(stream, type, pointer, size, loopFlag, loopPos);
         uint dirEnd, dirLoopEnd, dirLoopStart;
         if (loopFlag)
         {
@@ -264,7 +264,7 @@ public sealed class Sf2 : IDisposable
     /// <returns>Ibag size.</returns>
     public ushort GetIbagSize()
     {
-        return (ushort)_hydraChunk.ibagSubchunk.BagList.Count;
+        return (ushort)_hydraChunk._ibagSubchunk._bagList.Count;
     }
 
     /// <summary>
@@ -273,7 +273,7 @@ public sealed class Sf2 : IDisposable
     /// <returns>Igen size.</returns>
     public ushort GetIgenSize()
     {
-        return (ushort)_hydraChunk.igenSubchunk.GeneratorList.Count;
+        return (ushort)_hydraChunk._igenSubchunk._generatorList.Count;
     }
 
     /// <summary>
@@ -282,7 +282,7 @@ public sealed class Sf2 : IDisposable
     /// <returns>Imod size.</returns>
     public ushort GetImodSize()
     {
-        return (ushort)_hydraChunk.imodSubchunk.ModulatorList.Count;
+        return (ushort)_hydraChunk._imodSubchunk._modulatorList.Count;
     }
 
     /// <summary>
@@ -291,7 +291,7 @@ public sealed class Sf2 : IDisposable
     /// <returns>Pbag size.</returns>
     public ushort GetPbagSize()
     {
-        return (ushort)_hydraChunk.pbagSubchunk.BagList.Count;
+        return (ushort)_hydraChunk._pbagSubchunk._bagList.Count;
     }
 
     /// <summary>
@@ -300,7 +300,7 @@ public sealed class Sf2 : IDisposable
     /// <returns>Pgen size.</returns>
     public ushort GetPgenSize()
     {
-        return (ushort)_hydraChunk.pgenSubchunk.GeneratorList.Count;
+        return (ushort)_hydraChunk._pgenSubchunk._generatorList.Count;
     }
 
     /// <summary>
@@ -309,7 +309,7 @@ public sealed class Sf2 : IDisposable
     /// <returns>Pmod size.</returns>
     public ushort GetPmodSize()
     {
-        return (ushort)_hydraChunk.pmodSubchunk.ModulatorList.Count;
+        return (ushort)_hydraChunk._pmodSubchunk._modulatorList.Count;
     }
 
     /// <inheritdoc />

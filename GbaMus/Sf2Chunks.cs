@@ -73,8 +73,8 @@ public abstract class Sf2Chunks
 /// </summary>
 public readonly struct SfPresetHeader
 {
-    private readonly SfPresetHeaderContent Content;
-    private readonly Sf2 Sf2;
+    private readonly SfPresetHeaderContent _content;
+    private readonly Sf2 _sf2;
 
     /// <summary>
     /// Initializes a new instance of <see cref="SfPresetHeader"/>.
@@ -85,8 +85,8 @@ public readonly struct SfPresetHeader
     /// <param name="bank">Bank.</param>
     public SfPresetHeader(Sf2 sf2, ReadOnlySpan<byte> name, ushort patch, ushort bank)
     {
-        Content = new SfPresetHeaderContent(sf2, name, patch, bank);
-        Sf2 = sf2;
+        _content = new SfPresetHeaderContent(sf2, name, patch, bank);
+        _sf2 = sf2;
     }
 
     /// <summary>
@@ -97,11 +97,11 @@ public readonly struct SfPresetHeader
         byte[] buf = ArrayPool<byte>.Shared.Rent(38);
         try
         {
-            fixed (void* p = &Content)
+            fixed (void* p = &_content)
             {
                 new ReadOnlySpan<byte>(p, 38).CopyTo(buf);
             }
-            Sf2.Stream.Write(buf, 0, 38);
+            _sf2.Stream.Write(buf, 0, 38);
         }
         finally
         {
@@ -166,8 +166,8 @@ internal unsafe struct SfPresetHeaderContent
 /// </summary>
 public readonly struct SfBag
 {
-    private readonly SfBagContent Content;
-    private readonly Sf2 Sf2;
+    private readonly SfBagContent _content;
+    private readonly Sf2 _sf2;
 
     /// <summary>
     /// Initializes a new instance of <see cref="SfBag"/>.
@@ -176,8 +176,8 @@ public readonly struct SfBag
     /// <param name="preset">True if preset.</param>
     public SfBag(Sf2 sf2, bool preset)
     {
-        Content = preset ? new SfBagContent(sf2.GetPgenSize(), sf2.GetPmodSize()) : new SfBagContent(sf2.GetIgenSize(), sf2.GetImodSize());
-        Sf2 = sf2;
+        _content = preset ? new SfBagContent(sf2.GetPgenSize(), sf2.GetPmodSize()) : new SfBagContent(sf2.GetIgenSize(), sf2.GetImodSize());
+        _sf2 = sf2;
     }
 
     /// <summary>
@@ -188,11 +188,11 @@ public readonly struct SfBag
         byte[] buf = ArrayPool<byte>.Shared.Rent(4);
         try
         {
-            fixed (void* p = &Content)
+            fixed (void* p = &_content)
             {
                 new ReadOnlySpan<byte>(p, 4).CopyTo(buf);
             }
-            Sf2.Stream.Write(buf, 0, 4);
+            _sf2.Stream.Write(buf, 0, 4);
         }
         finally
         {
@@ -229,12 +229,12 @@ public readonly struct SfModList
     /// <summary>
     /// Content.
     /// </summary>
-    private readonly SfModListContent Content;
+    private readonly SfModListContent _content;
 
     /// <summary>
     /// Base soundfont.
     /// </summary>
-    private readonly Sf2 Sf2;
+    private readonly Sf2 _sf2;
 
     /// <summary>
     /// Initializes a new instance of <see cref="SfModList"/>.
@@ -242,8 +242,8 @@ public readonly struct SfModList
     /// <param name="sf2">Base soundfont.</param>
     public SfModList(Sf2 sf2)
     {
-        Content = new SfModListContent();
-        Sf2 = sf2;
+        _content = new SfModListContent();
+        _sf2 = sf2;
     }
 
     /// <summary>
@@ -254,11 +254,11 @@ public readonly struct SfModList
         byte[] buf = ArrayPool<byte>.Shared.Rent(2 * 5);
         try
         {
-            fixed (void* p = &Content)
+            fixed (void* p = &_content)
             {
                 new ReadOnlySpan<byte>(p, 2 * 5).CopyTo(buf);
             }
-            Sf2.Stream.Write(buf, 0, 2 * 5);
+            _sf2.Stream.Write(buf, 0, 2 * 5);
         }
         finally
         {
@@ -313,12 +313,12 @@ public readonly struct SfGenList
     /// <summary>
     /// Content.
     /// </summary>
-    private readonly SfGenListContent Content;
+    private readonly SfGenListContent _content;
 
     /// <summary>
     /// Base soundfont.
     /// </summary>
-    private readonly Sf2 Sf2;
+    private readonly Sf2 _sf2;
 
     /// <summary>
     /// Initializes a new instance of <see cref="SfGenList"/>.
@@ -326,8 +326,8 @@ public readonly struct SfGenList
     /// <param name="sf2">Base soundfont.</param>
     public SfGenList(Sf2 sf2)
     {
-        Content = new SfGenListContent();
-        Sf2 = sf2;
+        _content = new SfGenListContent();
+        _sf2 = sf2;
     }
 
     /// <summary>
@@ -338,8 +338,8 @@ public readonly struct SfGenList
     /// <param name="amount">Amount.</param>
     public SfGenList(Sf2 sf2, SfGenerator operation, GenAmountType amount)
     {
-        Content = new SfGenListContent(operation, amount);
-        Sf2 = sf2;
+        _content = new SfGenListContent(operation, amount);
+        _sf2 = sf2;
     }
 
     /// <summary>
@@ -350,11 +350,11 @@ public readonly struct SfGenList
         byte[] buf = ArrayPool<byte>.Shared.Rent(2 * 2);
         try
         {
-            fixed (void* p = &Content)
+            fixed (void* p = &_content)
             {
                 new ReadOnlySpan<byte>(p, 2 * 2).CopyTo(buf);
             }
-            Sf2.Stream.Write(buf, 0, 2 * 2);
+            _sf2.Stream.Write(buf, 0, 2 * 2);
         }
         finally
         {
@@ -388,8 +388,8 @@ internal struct SfGenListContent
 /// </summary>
 public readonly struct SfInst
 {
-    private readonly SfInstContent Content;
-    private readonly Sf2 Sf2;
+    private readonly SfInstContent _content;
+    private readonly Sf2 _sf2;
 
     /// <summary>
     /// Initializes a new instance of <see cref="SfInst"/>.
@@ -398,8 +398,8 @@ public readonly struct SfInst
     /// <param name="name">Instrument name.</param>
     public SfInst(Sf2 sf2, ReadOnlySpan<byte> name)
     {
-        Content = new SfInstContent(sf2, name);
-        Sf2 = sf2;
+        _content = new SfInstContent(sf2, name);
+        _sf2 = sf2;
     }
 
     /// <summary>
@@ -410,11 +410,11 @@ public readonly struct SfInst
         byte[] buf = ArrayPool<byte>.Shared.Rent(22);
         try
         {
-            fixed (void* p = &Content)
+            fixed (void* p = &_content)
             {
                 new ReadOnlySpan<byte>(p, 22).CopyTo(buf);
             }
-            Sf2.Stream.Write(buf, 0, 22);
+            _sf2.Stream.Write(buf, 0, 22);
         }
         finally
         {
@@ -445,12 +445,12 @@ public readonly struct SfSample
     /// <summary>
     /// Content.
     /// </summary>
-    private readonly SfSampleContent Content;
+    private readonly SfSampleContent _content;
 
     /// <summary>
     /// Base soundfont.
     /// </summary>
-    private readonly Sf2 Sf2;
+    private readonly Sf2 _sf2;
 
     /// <summary>
     /// Initializes a new instance of <see cref="SfSample"/>.
@@ -466,8 +466,8 @@ public readonly struct SfSample
     /// <param name="pitchCorrection">Pitch correction.</param>
     public SfSample(Sf2 sf2, ReadOnlySpan<byte> name, uint start, uint end, uint startLoop, uint endLoop, uint sampleRate, sbyte originalPitch, sbyte pitchCorrection)
     {
-        Content = new SfSampleContent(name, start, end, startLoop, endLoop, sampleRate, originalPitch, pitchCorrection);
-        Sf2 = sf2;
+        _content = new SfSampleContent(name, start, end, startLoop, endLoop, sampleRate, originalPitch, pitchCorrection);
+        _sf2 = sf2;
     }
 
     /// <summary>
@@ -478,11 +478,11 @@ public readonly struct SfSample
         byte[] buf = ArrayPool<byte>.Shared.Rent(46);
         try
         {
-            fixed (void* p = &Content)
+            fixed (void* p = &_content)
             {
                 new ReadOnlySpan<byte>(p, 46).CopyTo(buf);
             }
-            Sf2.Stream.Write(buf, 0, 46);
+            _sf2.Stream.Write(buf, 0, 46);
         }
         finally
         {
@@ -524,34 +524,34 @@ internal unsafe struct SfSampleContent
 /// <summary>
 /// Version sub-chunk.
 /// </summary>
-public class IFILSubChunk : Sf2Chunks
+public class IfilSubChunk : Sf2Chunks
 {
     /// <summary>
     /// Version major. Default 2.
     /// </summary>
-    private readonly ushort WMajor;
+    private readonly ushort _wMajor;
 
     /// <summary>
     /// Version minor. Default 1.
     /// </summary>
-    private readonly ushort WMinor;
+    private readonly ushort _wMinor;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="IFILSubChunk"/>.
+    /// Initializes a new instance of <see cref="IfilSubChunk"/>.
     /// </summary>
     /// <param name="sf2">Base soundfont.</param>
-    public IFILSubChunk(Sf2 sf2) : base(sf2, "ifil", 4)
+    public IfilSubChunk(Sf2 sf2) : base(sf2, "ifil", 4)
     {
-        WMajor = 2;
-        WMinor = 1;
+        _wMajor = 2;
+        _wMinor = 1;
     }
 
     /// <inheritdoc />
     public override void Write()
     {
         WriteHead();
-        Sf2.Stream.WriteLittleEndian(WMajor);
-        Sf2.Stream.WriteLittleEndian(WMinor);
+        Sf2.Stream.WriteLittleEndian(_wMajor);
+        Sf2.Stream.WriteLittleEndian(_wMinor);
     }
 }
 
@@ -563,7 +563,7 @@ public class HeaderSubChunk : Sf2Chunks
     /// <summary>
     /// String content.
     /// </summary>
-    private readonly string Field;
+    private readonly string _field;
 
     /// <summary>
     /// Initializes a new instance of <see cref="HeaderSubChunk"/>.
@@ -573,7 +573,7 @@ public class HeaderSubChunk : Sf2Chunks
     /// <param name="s">String content.</param>
     public HeaderSubChunk(Sf2 sf2, string subchunkType, string s) : base(sf2, subchunkType, (uint)Encoding.ASCII.GetByteCount(s) + 1)
     {
-        Field = s;
+        _field = s;
     }
 
     /// <inheritdoc />
@@ -583,9 +583,9 @@ public class HeaderSubChunk : Sf2Chunks
         byte[] arr = ArrayPool<byte>.Shared.Rent((int)Size);
         try
         {
-            fixed (char* c = Field)
+            fixed (char* c = _field)
             fixed (byte* b = arr)
-                Encoding.ASCII.GetBytes(c, Field.Length, b, (int)(Size - 1));
+                Encoding.ASCII.GetBytes(c, _field.Length, b, (int)(Size - 1));
             Sf2.Stream.Write(arr, 0, (int)Size);
         }
         finally
@@ -598,7 +598,7 @@ public class HeaderSubChunk : Sf2Chunks
 /// <summary>
 /// Class for the samples sub chunk.
 /// </summary>
-public class SMPLSubChunk : Sf2Chunks
+public class SmplSubChunk : Sf2Chunks
 {
     /// <summary>
     /// riina: ORIGINAL TABLE
@@ -607,25 +607,25 @@ public class SMPLSubChunk : Sf2Chunks
     //private static readonly byte[] s_convTbl = { 0x00, 0xC0, 0x00, 0xC8, 0x00, 0xD0, 0x00, 0xD8, 0x00, 0xE0, 0x00, 0xE8, 0x00, 0xF0, 0x00, 0xF8, 0x00, 0x00, 0x00, 0x08, 0x00, 0x10, 0x00, 0x18, 0x00, 0x20, 0x00, 0x28, 0x00, 0x30, 0x00, 0x38 };
     private static readonly sbyte[] s_deltaLut = { 0, 1, 4, 9, 16, 25, 36, 49, -64, -49, -36, -25, -16, -9, -4, -1 };
     private static readonly byte[] s_dummy46Samples = new byte[2 * 46];
-    private readonly List<Stream> FileList;
-    private readonly List<uint> PointerList;
-    private readonly List<uint> SizeList;
-    private readonly List<bool> LoopFlagList;
-    private readonly List<uint> LoopPosList;
-    private readonly List<SampleType> SampleTypeList;
+    private readonly List<Stream> _fileList;
+    private readonly List<uint> _pointerList;
+    private readonly List<uint> _sizeList;
+    private readonly List<bool> _loopFlagList;
+    private readonly List<uint> _loopPosList;
+    private readonly List<SampleType> _sampleTypeList;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="SMPLSubChunk"/>.
+    /// Initializes a new instance of <see cref="SmplSubChunk"/>.
     /// </summary>
     /// <param name="sf2">Base soundfont</param>
-    public SMPLSubChunk(Sf2 sf2) : base(sf2, "smpl")
+    public SmplSubChunk(Sf2 sf2) : base(sf2, "smpl")
     {
-        FileList = new List<Stream>();
-        PointerList = new List<uint>();
-        SizeList = new List<uint>();
-        LoopFlagList = new List<bool>();
-        LoopPosList = new List<uint>();
-        SampleTypeList = new List<SampleType>();
+        _fileList = new List<Stream>();
+        _pointerList = new List<uint>();
+        _sizeList = new List<uint>();
+        _loopFlagList = new List<bool>();
+        _loopPosList = new List<uint>();
+        _sampleTypeList = new List<SampleType>();
     }
 
     /// <summary>
@@ -640,12 +640,12 @@ public class SMPLSubChunk : Sf2Chunks
     /// <returns>Directory index of the start of the sample.</returns>
     public uint AddSample(Stream stream, SampleType type, uint pointer, uint size, bool loopFlag, uint loopPos)
     {
-        FileList.Add(stream);
-        PointerList.Add(pointer);
-        SizeList.Add(size);
-        LoopFlagList.Add(loopFlag);
-        LoopPosList.Add(loopPos);
-        SampleTypeList.Add(type);
+        _fileList.Add(stream);
+        _pointerList.Add(pointer);
+        _sizeList.Add(size);
+        _loopFlagList.Add(loopFlag);
+        _loopPosList.Add(loopPos);
+        _sampleTypeList.Add(type);
         uint dirOffset = Size >> 1;
         // 2 bytes per sample
         // Compute size including the 8 samples after loop point
@@ -661,18 +661,18 @@ public class SMPLSubChunk : Sf2Chunks
     public override void Write()
     {
         WriteHead();
-        for (int i = 0; i < FileList.Count; i++)
+        for (int i = 0; i < _fileList.Count; i++)
         {
-            Stream stream = FileList[i];
-            stream.Position = PointerList[i];
-            uint size = SizeList[i];
+            Stream stream = _fileList[i];
+            stream.Position = _pointerList[i];
+            uint size = _sizeList[i];
             byte[] outBuf = ArrayPool<byte>.Shared.Rent((int)(2 * size));
             outBuf.AsSpan().Clear();
             try
             {
-                switch (SampleTypeList[i])
+                switch (_sampleTypeList[i])
                 {
-                    case SampleType.UNSIGNED_8:
+                    case SampleType.Unsigned8:
                         {
                             byte[] data = ArrayPool<byte>.Shared.Rent((int)size);
                             data.AsSpan().Clear();
@@ -688,7 +688,7 @@ public class SMPLSubChunk : Sf2Chunks
                             }
                             break;
                         }
-                    case SampleType.SIGNED_8:
+                    case SampleType.Signed8:
                         {
                             byte[] data = ArrayPool<byte>.Shared.Rent((int)size);
                             data.AsSpan().Clear();
@@ -704,12 +704,12 @@ public class SMPLSubChunk : Sf2Chunks
                             }
                             break;
                         }
-                    case SampleType.SIGNED_16:
+                    case SampleType.Signed16:
                         {
                             stream.ForceRead(outBuf, 0, (int)(size * 2));
                             break;
                         }
-                    case SampleType.GAMEBOY_CH3:
+                    case SampleType.GameboyCh3:
                         {
                             uint numOfRepts = size / 32;
                             byte[] data = ArrayPool<byte>.Shared.Rent(16);
@@ -739,7 +739,7 @@ public class SMPLSubChunk : Sf2Chunks
                             }
                             break;
                         }
-                    case SampleType.BDPCM:
+                    case SampleType.Bdpcm:
                         {
                             uint nBlocks = size / 64;
                             byte[] data = ArrayPool<byte>.Shared.Rent((int)(nBlocks * 33));
@@ -774,8 +774,8 @@ public class SMPLSubChunk : Sf2Chunks
                         throw new ArgumentOutOfRangeException();
                 }
                 Sf2.Stream.Write(outBuf, 0, (int)(2 * size));
-                if (LoopFlagList[i])
-                    Sf2.Stream.Write(outBuf, (int)(LoopPosList[i] * 2), 2 * 8);
+                if (_loopFlagList[i])
+                    Sf2.Stream.Write(outBuf, (int)(_loopPosList[i] * 2), 2 * 8);
                 Sf2.Stream.Write(s_dummy46Samples, 0, 2 * 46);
             }
             finally
@@ -789,17 +789,17 @@ public class SMPLSubChunk : Sf2Chunks
 /// <summary>
 /// Preset header list sub-chunk.
 /// </summary>
-public class PHDRSubChunk : Sf2Chunks
+public class PhdrSubChunk : Sf2Chunks
 {
-    private readonly List<SfPresetHeader> PresetList;
+    private readonly List<SfPresetHeader> _presetList;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="PHDRSubChunk"/>.
+    /// Initializes a new instance of <see cref="PhdrSubChunk"/>.
     /// </summary>
     /// <param name="sf2">Base soundfont.</param>
-    public PHDRSubChunk(Sf2 sf2) : base(sf2, "phdr")
+    public PhdrSubChunk(Sf2 sf2) : base(sf2, "phdr")
     {
-        PresetList = new List<SfPresetHeader>();
+        _presetList = new List<SfPresetHeader>();
     }
 
     /// <summary>
@@ -808,7 +808,7 @@ public class PHDRSubChunk : Sf2Chunks
     /// <param name="preset">Preset to add.</param>
     public void AddPreset(SfPresetHeader preset)
     {
-        PresetList.Add(preset);
+        _presetList.Add(preset);
         Size += 38;
     }
 
@@ -816,7 +816,7 @@ public class PHDRSubChunk : Sf2Chunks
     public override void Write()
     {
         WriteHead();
-        foreach (var preset in PresetList)
+        foreach (var preset in _presetList)
             preset.Write();
     }
 }
@@ -824,17 +824,17 @@ public class PHDRSubChunk : Sf2Chunks
 /// <summary>
 /// Instrument list sub chunk.
 /// </summary>
-public class INSTSubChunk : Sf2Chunks
+public class InstSubChunk : Sf2Chunks
 {
-    private readonly List<SfInst> InstrumentList;
+    private readonly List<SfInst> _instrumentList;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="INSTSubChunk"/>.
+    /// Initializes a new instance of <see cref="InstSubChunk"/>.
     /// </summary>
     /// <param name="sf2">Base soundfont.</param>
-    public INSTSubChunk(Sf2 sf2) : base(sf2, "inst")
+    public InstSubChunk(Sf2 sf2) : base(sf2, "inst")
     {
-        InstrumentList = new List<SfInst>();
+        _instrumentList = new List<SfInst>();
     }
 
     /// <summary>
@@ -843,7 +843,7 @@ public class INSTSubChunk : Sf2Chunks
     /// <param name="instrument">Instrument.</param>
     public void AddInstrument(SfInst instrument)
     {
-        InstrumentList.Add(instrument);
+        _instrumentList.Add(instrument);
         Size += 22;
     }
 
@@ -851,7 +851,7 @@ public class INSTSubChunk : Sf2Chunks
     public override void Write()
     {
         WriteHead();
-        foreach (var instrument in InstrumentList)
+        foreach (var instrument in _instrumentList)
             instrument.Write();
     }
 }
@@ -859,18 +859,18 @@ public class INSTSubChunk : Sf2Chunks
 /// <summary>
 /// Preset/instrument bag list sub chunk.
 /// </summary>
-public class BAGSubChunk : Sf2Chunks
+public class BagSubChunk : Sf2Chunks
 {
-    internal readonly List<SfBag> BagList;
+    internal readonly List<SfBag> _bagList;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="BAGSubChunk"/>.
+    /// Initializes a new instance of <see cref="BagSubChunk"/>.
     /// </summary>
     /// <param name="sf2">Base soundfont.</param>
     /// <param name="preset">Preset.</param>
-    public BAGSubChunk(Sf2 sf2, bool preset) : base(sf2, preset ? "pbag" : "ibag")
+    public BagSubChunk(Sf2 sf2, bool preset) : base(sf2, preset ? "pbag" : "ibag")
     {
-        BagList = new List<SfBag>();
+        _bagList = new List<SfBag>();
     }
 
     /// <summary>
@@ -879,7 +879,7 @@ public class BAGSubChunk : Sf2Chunks
     /// <param name="bag">Bag.</param>
     public void AddBag(SfBag bag)
     {
-        BagList.Add(bag);
+        _bagList.Add(bag);
         Size += 4;
     }
 
@@ -887,7 +887,7 @@ public class BAGSubChunk : Sf2Chunks
     public override void Write()
     {
         WriteHead();
-        foreach (var bag in BagList)
+        foreach (var bag in _bagList)
             bag.Write();
     }
 }
@@ -895,18 +895,18 @@ public class BAGSubChunk : Sf2Chunks
 /// <summary>
 /// Preset/insrument modulator list class.
 /// </summary>
-public class MODSubChunk : Sf2Chunks
+public class ModSubChunk : Sf2Chunks
 {
-    internal readonly List<SfModList> ModulatorList;
+    internal readonly List<SfModList> _modulatorList;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="MODSubChunk"/>.
+    /// Initializes a new instance of <see cref="ModSubChunk"/>.
     /// </summary>
     /// <param name="sf2">Base soundfont.</param>
     /// <param name="preset">Preset.</param>
-    public MODSubChunk(Sf2 sf2, bool preset) : base(sf2, preset ? "pmod" : "imod")
+    public ModSubChunk(Sf2 sf2, bool preset) : base(sf2, preset ? "pmod" : "imod")
     {
-        ModulatorList = new List<SfModList>();
+        _modulatorList = new List<SfModList>();
     }
 
     /// <summary>
@@ -915,7 +915,7 @@ public class MODSubChunk : Sf2Chunks
     /// <param name="modulator">Modulator.</param>
     public void AddModulator(SfModList modulator)
     {
-        ModulatorList.Add(modulator);
+        _modulatorList.Add(modulator);
         Size += 10;
     }
 
@@ -923,7 +923,7 @@ public class MODSubChunk : Sf2Chunks
     public override void Write()
     {
         WriteHead();
-        foreach (var modulator in ModulatorList)
+        foreach (var modulator in _modulatorList)
             modulator.Write();
     }
 }
@@ -931,18 +931,18 @@ public class MODSubChunk : Sf2Chunks
 /// <summary>
 /// Preset/instrument generator list class.
 /// </summary>
-public class GENSubChunk : Sf2Chunks
+public class GenSubChunk : Sf2Chunks
 {
-    internal readonly List<SfGenList> GeneratorList;
+    internal readonly List<SfGenList> _generatorList;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="GENSubChunk"/>.
+    /// Initializes a new instance of <see cref="GenSubChunk"/>.
     /// </summary>
     /// <param name="sf2">Base soundfont.</param>
     /// <param name="preset">Preset.</param>
-    public GENSubChunk(Sf2 sf2, bool preset) : base(sf2, preset ? "pgen" : "igen")
+    public GenSubChunk(Sf2 sf2, bool preset) : base(sf2, preset ? "pgen" : "igen")
     {
-        GeneratorList = new List<SfGenList>();
+        _generatorList = new List<SfGenList>();
     }
 
     /// <summary>
@@ -951,7 +951,7 @@ public class GENSubChunk : Sf2Chunks
     /// <param name="generator">Modulator.</param>
     public void AddGenerator(SfGenList generator)
     {
-        GeneratorList.Add(generator);
+        _generatorList.Add(generator);
         Size += 4;
     }
 
@@ -959,7 +959,7 @@ public class GENSubChunk : Sf2Chunks
     public override void Write()
     {
         WriteHead();
-        foreach (var generator in GeneratorList)
+        foreach (var generator in _generatorList)
             generator.Write();
     }
 }
@@ -967,17 +967,17 @@ public class GENSubChunk : Sf2Chunks
 /// <summary>
 /// Sample header list class.
 /// </summary>
-public class SHDRSubChunk : Sf2Chunks
+public class ShdrSubChunk : Sf2Chunks
 {
-    private readonly List<SfSample> SampleList;
+    private readonly List<SfSample> _sampleList;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="SHDRSubChunk"/>.
+    /// Initializes a new instance of <see cref="ShdrSubChunk"/>.
     /// </summary>
     /// <param name="sf2">Base soundfont.</param>
-    public SHDRSubChunk(Sf2 sf2) : base(sf2, "shdr")
+    public ShdrSubChunk(Sf2 sf2) : base(sf2, "shdr")
     {
-        SampleList = new List<SfSample>();
+        _sampleList = new List<SfSample>();
     }
 
     /// <summary>
@@ -986,7 +986,7 @@ public class SHDRSubChunk : Sf2Chunks
     /// <param name="sample">Modulator.</param>
     public void AddSample(SfSample sample)
     {
-        SampleList.Add(sample);
+        _sampleList.Add(sample);
         Size += 46;
     }
 
@@ -994,7 +994,7 @@ public class SHDRSubChunk : Sf2Chunks
     public override void Write()
     {
         WriteHead();
-        foreach (var sample in SampleList)
+        foreach (var sample in _sampleList)
             sample.Write();
     }
 }
@@ -1006,11 +1006,11 @@ public class InfoListChunk : Sf2Chunks
 {
     private static readonly byte[] s_info = Encoding.ASCII.GetBytes("INFO");
 
-    private readonly IFILSubChunk ifilSubchunk;
-    private readonly HeaderSubChunk isngSubchunk;
-    private readonly HeaderSubChunk inamSubchunk;
-    private readonly HeaderSubChunk iengSubchunk;
-    private readonly HeaderSubChunk icopSubchunk;
+    private readonly IfilSubChunk _ifilSubchunk;
+    private readonly HeaderSubChunk _isngSubchunk;
+    private readonly HeaderSubChunk _inamSubchunk;
+    private readonly HeaderSubChunk _iengSubchunk;
+    private readonly HeaderSubChunk _icopSubchunk;
 
     /// <summary>
     /// Initializes a new instance of <see cref="InfoListChunk"/>.
@@ -1018,11 +1018,11 @@ public class InfoListChunk : Sf2Chunks
     /// <param name="sf2">Base soundfont.</param>
     public InfoListChunk(Sf2 sf2) : base(sf2, "LIST")
     {
-        ifilSubchunk = new IFILSubChunk(sf2);
-        isngSubchunk = new HeaderSubChunk(sf2, "isng", "EMU8000");
-        inamSubchunk = new HeaderSubChunk(sf2, "INAM", "Unnamed");
-        iengSubchunk = new HeaderSubChunk(sf2, "IENG", "Nintendo Game Boy Advance SoundFont");
-        icopSubchunk = new HeaderSubChunk(sf2, "ICOP", "Ripped with SF2Ripper v0.0 (c) 2012 by Bregalad");
+        _ifilSubchunk = new IfilSubChunk(sf2);
+        _isngSubchunk = new HeaderSubChunk(sf2, "isng", "EMU8000");
+        _inamSubchunk = new HeaderSubChunk(sf2, "INAM", "Unnamed");
+        _iengSubchunk = new HeaderSubChunk(sf2, "IENG", "Nintendo Game Boy Advance SoundFont");
+        _icopSubchunk = new HeaderSubChunk(sf2, "ICOP", "Ripped with SF2Ripper v0.0 (c) 2012 by Bregalad");
     }
 
     /// <summary>
@@ -1032,11 +1032,11 @@ public class InfoListChunk : Sf2Chunks
     public uint CalcSize()
     {
         Size = 4;
-        Size += ifilSubchunk.Size + 8;
-        Size += isngSubchunk.Size + 8;
-        Size += inamSubchunk.Size + 8;
-        Size += iengSubchunk.Size + 8;
-        Size += icopSubchunk.Size + 8;
+        Size += _ifilSubchunk.Size + 8;
+        Size += _isngSubchunk.Size + 8;
+        Size += _inamSubchunk.Size + 8;
+        Size += _iengSubchunk.Size + 8;
+        Size += _icopSubchunk.Size + 8;
         return Size;
     }
 
@@ -1045,11 +1045,11 @@ public class InfoListChunk : Sf2Chunks
     {
         WriteHead();
         Sf2.Stream.Write(s_info, 0, 4);
-        ifilSubchunk.Write();
-        isngSubchunk.Write();
-        inamSubchunk.Write();
-        iengSubchunk.Write();
-        icopSubchunk.Write();
+        _ifilSubchunk.Write();
+        _isngSubchunk.Write();
+        _inamSubchunk.Write();
+        _iengSubchunk.Write();
+        _icopSubchunk.Write();
     }
 }
 
@@ -1060,7 +1060,7 @@ public class SdtaListChunk : Sf2Chunks
 {
     private static readonly byte[] s_sdta = Encoding.ASCII.GetBytes("sdta");
 
-    internal readonly SMPLSubChunk smplSubchunk;
+    internal readonly SmplSubChunk _smplSubchunk;
 
     /// <summary>
     /// Initializes a new instance of <see cref="SdtaListChunk"/>.
@@ -1068,7 +1068,7 @@ public class SdtaListChunk : Sf2Chunks
     /// <param name="sf2">Base soundfont.</param>
     public SdtaListChunk(Sf2 sf2) : base(sf2, "LIST")
     {
-        smplSubchunk = new SMPLSubChunk(sf2);
+        _smplSubchunk = new SmplSubChunk(sf2);
     }
 
     /// <summary>
@@ -1078,7 +1078,7 @@ public class SdtaListChunk : Sf2Chunks
     public uint CalcSize()
     {
         Size = 4;
-        Size += smplSubchunk.Size + 8;
+        Size += _smplSubchunk.Size + 8;
         return Size;
     }
 
@@ -1087,7 +1087,7 @@ public class SdtaListChunk : Sf2Chunks
     {
         WriteHead();
         Sf2.Stream.Write(s_sdta, 0, 4);
-        smplSubchunk.Write();
+        _smplSubchunk.Write();
     }
 }
 
@@ -1098,15 +1098,15 @@ public class HydraChunk : Sf2Chunks
 {
     private static readonly byte[] s_pdta = Encoding.ASCII.GetBytes("pdta");
 
-    internal readonly PHDRSubChunk phdrSubchunk;
-    internal readonly BAGSubChunk pbagSubchunk;
-    internal readonly MODSubChunk pmodSubchunk;
-    internal readonly GENSubChunk pgenSubchunk;
-    internal readonly INSTSubChunk instSubchunk;
-    internal readonly BAGSubChunk ibagSubchunk;
-    internal readonly MODSubChunk imodSubchunk;
-    internal readonly GENSubChunk igenSubchunk;
-    internal readonly SHDRSubChunk shdrSubchunk;
+    internal readonly PhdrSubChunk _phdrSubchunk;
+    internal readonly BagSubChunk _pbagSubchunk;
+    internal readonly ModSubChunk _pmodSubchunk;
+    internal readonly GenSubChunk _pgenSubchunk;
+    internal readonly InstSubChunk _instSubchunk;
+    internal readonly BagSubChunk _ibagSubchunk;
+    internal readonly ModSubChunk _imodSubchunk;
+    internal readonly GenSubChunk _igenSubchunk;
+    internal readonly ShdrSubChunk _shdrSubchunk;
 
     /// <summary>
     /// Initializes a new instance of <see cref="HydraChunk"/>.
@@ -1114,15 +1114,15 @@ public class HydraChunk : Sf2Chunks
     /// <param name="sf2">Base soundfont.</param>
     public HydraChunk(Sf2 sf2) : base(sf2, "LIST")
     {
-        phdrSubchunk = new PHDRSubChunk(sf2);
-        pbagSubchunk = new BAGSubChunk(sf2, true);
-        pmodSubchunk = new MODSubChunk(sf2, true);
-        pgenSubchunk = new GENSubChunk(sf2, true);
-        instSubchunk = new INSTSubChunk(sf2);
-        ibagSubchunk = new BAGSubChunk(sf2, false);
-        imodSubchunk = new MODSubChunk(sf2, false);
-        igenSubchunk = new GENSubChunk(sf2, false);
-        shdrSubchunk = new SHDRSubChunk(sf2);
+        _phdrSubchunk = new PhdrSubChunk(sf2);
+        _pbagSubchunk = new BagSubChunk(sf2, true);
+        _pmodSubchunk = new ModSubChunk(sf2, true);
+        _pgenSubchunk = new GenSubChunk(sf2, true);
+        _instSubchunk = new InstSubChunk(sf2);
+        _ibagSubchunk = new BagSubChunk(sf2, false);
+        _imodSubchunk = new ModSubChunk(sf2, false);
+        _igenSubchunk = new GenSubChunk(sf2, false);
+        _shdrSubchunk = new ShdrSubChunk(sf2);
     }
 
     /// <summary>
@@ -1132,15 +1132,15 @@ public class HydraChunk : Sf2Chunks
     public uint CalcSize()
     {
         Size = 4;
-        Size += phdrSubchunk.Size + 8;
-        Size += pbagSubchunk.Size + 8;
-        Size += pmodSubchunk.Size + 8;
-        Size += pgenSubchunk.Size + 8;
-        Size += instSubchunk.Size + 8;
-        Size += ibagSubchunk.Size + 8;
-        Size += imodSubchunk.Size + 8;
-        Size += igenSubchunk.Size + 8;
-        Size += shdrSubchunk.Size + 8;
+        Size += _phdrSubchunk.Size + 8;
+        Size += _pbagSubchunk.Size + 8;
+        Size += _pmodSubchunk.Size + 8;
+        Size += _pgenSubchunk.Size + 8;
+        Size += _instSubchunk.Size + 8;
+        Size += _ibagSubchunk.Size + 8;
+        Size += _imodSubchunk.Size + 8;
+        Size += _igenSubchunk.Size + 8;
+        Size += _shdrSubchunk.Size + 8;
         return Size;
     }
 
@@ -1149,14 +1149,14 @@ public class HydraChunk : Sf2Chunks
     {
         WriteHead();
         Sf2.Stream.Write(s_pdta, 0, 4);
-        phdrSubchunk.Write();
-        pbagSubchunk.Write();
-        pmodSubchunk.Write();
-        pgenSubchunk.Write();
-        instSubchunk.Write();
-        ibagSubchunk.Write();
-        imodSubchunk.Write();
-        igenSubchunk.Write();
-        shdrSubchunk.Write();
+        _phdrSubchunk.Write();
+        _pbagSubchunk.Write();
+        _pmodSubchunk.Write();
+        _pgenSubchunk.Write();
+        _instSubchunk.Write();
+        _ibagSubchunk.Write();
+        _imodSubchunk.Write();
+        _igenSubchunk.Write();
+        _shdrSubchunk.Write();
     }
 }
