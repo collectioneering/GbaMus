@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace GbaMus;
@@ -146,6 +147,7 @@ public class Midi
     }
 
     [StructLayout(LayoutKind.Explicit, Size = 14)]
+    [SuppressMessage("ReSharper", "PrivateFieldCanBeConvertedToLocalVariable")]
     private unsafe struct MthdChunk
     {
         private static ReadOnlySpan<byte> Head => new[] { (byte)'M', (byte)'T', (byte)'h', (byte)'d' };
@@ -156,7 +158,7 @@ public class Midi
         [FieldOffset(10)] private fixed byte NTracks[2];
         [FieldOffset(12)] private fixed byte Division[2];
 
-        public unsafe MthdChunk(ushort deltaTimePerBeat)
+        public MthdChunk(ushort deltaTimePerBeat)
         {
             fixed (byte* b = Name)
                 Head.CopyTo(new Span<byte>(b, 4));
@@ -172,6 +174,7 @@ public class Midi
     }
 
     [StructLayout(LayoutKind.Explicit, Size = 8)]
+    [SuppressMessage("ReSharper", "PrivateFieldCanBeConvertedToLocalVariable")]
     private unsafe struct MtrkChunk
     {
         private static ReadOnlySpan<byte> Head => new[] { (byte)'M', (byte)'T', (byte)'r', (byte)'k' };
@@ -179,7 +182,7 @@ public class Midi
         [FieldOffset(0)] private fixed byte Name[4];
         [FieldOffset(4)] private fixed byte Size[4];
 
-        public unsafe MtrkChunk(uint s)
+        public MtrkChunk(uint s)
         {
             fixed (byte* b = Name)
                 Head.CopyTo(new Span<byte>(b, 4));

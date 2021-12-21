@@ -122,7 +122,6 @@ public static class GbaMusRipper
             return e.Code;
         }
 
-
         // Get GBA file
         FileStream inGba;
         try

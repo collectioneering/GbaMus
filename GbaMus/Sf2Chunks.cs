@@ -148,7 +148,7 @@ internal unsafe struct SfPresetHeaderContent
     /// </summary>
     [FieldOffset(38)] private readonly uint DwMorphology;
 
-    public unsafe SfPresetHeaderContent(Sf2 sf2, ReadOnlySpan<byte> name, ushort patch, ushort bank)
+    public SfPresetHeaderContent(Sf2 sf2, ReadOnlySpan<byte> name, ushort patch, ushort bank)
     {
         fixed (byte* b = AchPresetName)
             name.Slice(0, Math.Min(20, name.Length)).CopyTo(new Span<byte>(b, 20));
@@ -429,7 +429,7 @@ internal unsafe struct SfInstContent
     [FieldOffset(0)] private fixed byte AchPresetName[20];
     [FieldOffset(20)] private readonly ushort WInstBagNx;
 
-    public unsafe SfInstContent(Sf2 sf2, ReadOnlySpan<byte> name)
+    public SfInstContent(Sf2 sf2, ReadOnlySpan<byte> name)
     {
         fixed (byte* b = AchPresetName)
             name.Slice(0, Math.Min(20, name.Length)).CopyTo(new Span<byte>(b, 20));
@@ -505,7 +505,7 @@ internal unsafe struct SfSampleContent
     [FieldOffset(42)] private readonly ushort wSampleLink;
     [FieldOffset(44)] private readonly SfSampleLink sfSampleType;
 
-    public unsafe SfSampleContent(ReadOnlySpan<byte> name, uint start, uint end, uint startLoop, uint endLoop, uint sampleRate, sbyte originalPitch, sbyte pitchCorrection)
+    public SfSampleContent(ReadOnlySpan<byte> name, uint start, uint end, uint startLoop, uint endLoop, uint sampleRate, sbyte originalPitch, sbyte pitchCorrection)
     {
         fixed (byte* b = AchPresetName)
             name.Slice(0, Math.Min(20, name.Length)).CopyTo(new Span<byte>(b, 20));

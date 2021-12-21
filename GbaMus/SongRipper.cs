@@ -9,12 +9,12 @@ public class SongRipper
 {
     private class Note
     {
-        private SongRipper _songRipper;
-        private Midi _midi;
+        private readonly SongRipper _songRipper;
+        private readonly Midi _midi;
         private int _counter;
-        private int _key;
-        private int _vel;
-        private int _chn;
+        private readonly int _key;
+        private readonly int _vel;
+        private readonly int _chn;
         private bool _eventMade;
 
         // Tick counter, if it becomes zero
@@ -58,45 +58,37 @@ public class SongRipper
         }
     }
 
-    private uint[] _trackPtr = new uint[16];
-    private byte[] _lastCmd = new byte[16];
-    private byte[] _lastKey = new byte[16];
-    private byte[] _lastVel = new byte[16];
-    private int[] _counter = new int[16];
-    private uint[] _returnPtr = new uint[16];
-    private int[] _keyShift = new int[16];
-    private bool[] _returnFlag = new bool[16];
-    private bool[] _trackCompleted = new bool[16];
-    private bool s_endFlag;
-    private bool s_loopFlag;
+    private readonly uint[] _trackPtr = new uint[16];
+    private readonly byte[] _lastCmd = new byte[16];
+    private readonly byte[] _lastKey = new byte[16];
+    private readonly byte[] _lastVel = new byte[16];
+    private readonly int[] _counter = new int[16];
+    private readonly uint[] _returnPtr = new uint[16];
+    private readonly int[] _keyShift = new int[16];
+    private readonly bool[] _returnFlag = new bool[16];
+    private readonly bool[] _trackCompleted = new bool[16];
+    private bool _endFlag;
+    private bool _loopFlag;
     private uint _loopAdr;
 
-    private int[] _lfoDelayCtr = new int[16];
-    private int[] _lfoDelay = new int[16];
-    private int[] _lfoDepth = new int[16];
-    private int[] _lfoType = new int[16];
-    private bool[] _lfoFlag = new bool[16];
-    private bool[] _lfoHack = new bool[16];
+    private readonly int[] _lfoDelayCtr = new int[16];
+    private readonly int[] _lfoDelay = new int[16];
+    private readonly int[] _lfoDepth = new int[16];
+    private readonly int[] _lfoType = new int[16];
+    private readonly bool[] _lfoFlag = new bool[16];
+    private readonly bool[] _lfoHack = new bool[16];
 
     private uint _simultaneousNotesCtr;
     private uint _simultaneousNotesMax;
 
-    private List<Note> _notesPlaying;
-
-    private int _bankNumber;
-    private bool _bankUsed;
-    private bool _rc;
-    private bool _gs;
-    private bool _xg;
-    private bool _lv;
-    private bool _sv;
+    private readonly List<Note> _notesPlaying;
 
     private int _trackAmnt;
     private Settings _settings;
     private bool _processed;
 
     private Midi _midi;
-    private Stream _inGba;
+    private readonly Stream _inGba;
 
     private static void PrintInstructions(TextWriter? textWriter)
     {
@@ -127,7 +119,7 @@ public class SongRipper
     // LFO logic on tick
     private void ProcessLfo(int track)
     {
-        if (_sv && _lfoDelayCtr[track] != 0)
+        if (_settings.Sv && _lfoDelayCtr[track] != 0)
         {
             // Decrease counter if it's value was nonzero
             if (--_lfoDelayCtr[track] == 0)
@@ -147,14 +139,14 @@ public class SongRipper
     private void StartLfo(int track)
     {
         // Reset down delay counter to its initial value
-        if (_sv && _lfoDelay[track] != 0)
+        if (_settings.Sv && _lfoDelay[track] != 0)
             _lfoDelayCtr[track] = _lfoDelay[track];
     }
 
     private void StopLfo(int track)
     {
         // Cancel a LFO if it was playing,
-        if (_sv && _lfoFlag[track])
+        if (_settings.Sv && _lfoFlag[track])
         {
             if (_lfoType[track] == 0)
                 _midi.AddController(track, 1, 0);
@@ -178,10 +170,10 @@ public class SongRipper
             _counter[track]--;
             // Process events until counter non-null or pointer null
             // This might not be executed if counter both are non null.
-            while (_trackPtr[track] != 0 && !s_endFlag && _counter[track] <= 0)
+            while (_trackPtr[track] != 0 && !_endFlag && _counter[track] <= 0)
             {
                 // Check if we're at loop start point
-                if (track == 0 && s_loopFlag && !_returnFlag[0] && !_trackCompleted[0] && _trackPtr[0] == _loopAdr)
+                if (track == 0 && _loopFlag && !_returnFlag[0] && !_trackCompleted[0] && _trackPtr[0] == _loopAdr)
                     _midi.AddMarker(Encoding.ASCII.GetBytes("loopStart"));
 
                 ProcessEvent(track);
@@ -341,7 +333,7 @@ public class SongRipper
             }
 
             // Linearise velocity if needed
-            if (_lv) vel = (int)Math.Sqrt(127.0 * vel);
+            if (_settings.Lv) vel = (int)Math.Sqrt(127.0 * vel);
 
             _notesPlaying.Insert(0, new Note(this, _midi, track, s_lenTbl[command - 0xd0 + 1] + lenOfs, key + _keyShift[track], vel));
             return;
@@ -357,14 +349,14 @@ public class SongRipper
 
             // Set instrument
             case 0xbd:
-                if (_bankUsed)
+                if (_settings.BankNumber is {} bn)
                 {
-                    if (!_xg)
-                        _midi.AddController(track, 0, (byte)_bankNumber);
+                    if (!_settings.Xg)
+                        _midi.AddController(track, 0, (byte)bn);
                     else
                     {
-                        _midi.AddController(track, 0, (byte)(_bankNumber >> 7));
-                        _midi.AddController(track, 32, (byte)(_bankNumber & 0x7f));
+                        _midi.AddController(track, 0, (byte)(bn >> 7));
+                        _midi.AddController(track, 32, (byte)(bn & 0x7f));
                     }
                 }
                 _midi.AddPChange(track, arg1);
@@ -374,7 +366,7 @@ public class SongRipper
             case 0xbe:
                 {
                     // Linearise volume if needed
-                    int volume = _lv ? (int)Math.Sqrt(127.0 * arg1) : arg1;
+                    int volume = _settings.Lv ? (int)Math.Sqrt(127.0 * arg1) : arg1;
                     _midi.AddController(track, 7, (byte)volume);
                 }
                 return;
@@ -391,7 +383,7 @@ public class SongRipper
 
             // Pitch bend range
             case 0xc1:
-                if (_sv)
+                if (_settings.Sv)
                     _midi.AddRpn(track, 0, arg1);
                 else
                     _midi.AddController(track, 20, arg1);
@@ -399,7 +391,7 @@ public class SongRipper
 
             // LFO Speed
             case 0xc2:
-                if (_sv)
+                if (_settings.Sv)
                     _midi.AddNrpn(track, 136, arg1);
                 else
                     _midi.AddController(track, 21, arg1);
@@ -407,7 +399,7 @@ public class SongRipper
 
             // LFO delay
             case 0xc3:
-                if (_sv)
+                if (_settings.Sv)
                     _lfoDelay[track] = arg1;
                 else
                     _midi.AddController(track, 26, arg1);
@@ -415,7 +407,7 @@ public class SongRipper
 
             // LFO depth
             case 0xc4:
-                if (_sv)
+                if (_settings.Sv)
                 {
                     if (_lfoDelay[track] == 0 && _lfoHack[track])
                     {
@@ -437,7 +429,7 @@ public class SongRipper
 
             // LFO type
             case 0xc5:
-                if (_sv)
+                if (_settings.Sv)
                     _lfoType[track] = arg1;
                 else
                     _midi.AddController(track, 22, arg1);
@@ -445,7 +437,7 @@ public class SongRipper
 
             // Detune
             case 0xc8:
-                if (_sv)
+                if (_settings.Sv)
                     _midi.AddRpn(track, 1, arg1);
                 else
                     _midi.AddController(track, 24, arg1);
@@ -508,7 +500,7 @@ public class SongRipper
                         _trackPtr[track]--; // Seek back, as arg 1 is unused and belong to next event !
                     }
                     // Linearise velocity if needed
-                    if (_lv) vel = (int)Math.Sqrt(127.0 * vel);
+                    if (_settings.Lv) vel = (int)Math.Sqrt(127.0 * vel);
 
                     // Make note of infinite length
                     _notesPlaying.Insert(0, new Note(this, _midi, track, -1, key + _keyShift[track], vel));
@@ -681,13 +673,6 @@ public class SongRipper
     /// <exception cref="InvalidDataException">Thrown for invalid properties.</exception>
     public SongRipper(Stream stream, Settings settings)
     {
-        _bankNumber = settings.BankNumber ?? -1;
-        _bankUsed = settings.BankNumber.HasValue;
-        _rc = settings.Rc;
-        _gs = settings.Gs;
-        _xg = settings.Xg;
-        _lv = settings.Lv;
-        _sv = settings.Sv;
         _settings = settings;
         _inGba = stream;
         _notesPlaying = new List<Note>();
@@ -712,13 +697,6 @@ public class SongRipper
             throw new InvalidDataException($"Invalid amount of tracks {trackAmnt}! (must be 1-16).");
         settings.Debug?.WriteLine($"{trackAmnt} tracks.");
         _trackAmnt = trackAmnt;
-        _bankNumber = settings.BankNumber ?? -1;
-        _bankUsed = settings.BankNumber.HasValue;
-        _rc = settings.Rc;
-        _gs = settings.Gs;
-        _xg = settings.Xg;
-        _lv = settings.Lv;
-        _sv = settings.Sv;
         _settings = settings;
     }
 
@@ -738,8 +716,8 @@ public class SongRipper
         _keyShift.AsSpan().Clear();
         _returnFlag.AsSpan().Clear();
         _trackCompleted.AsSpan().Clear();
-        s_endFlag = false;
-        s_loopFlag = false;
+        _endFlag = false;
+        _loopFlag = false;
         _lfoDelayCtr.AsSpan().Clear();
         _lfoDelay.AsSpan().Clear();
         _lfoDepth.AsSpan().Clear();
@@ -777,7 +755,7 @@ public class SongRipper
         if (stream == null) throw new ArgumentNullException(nameof(stream));
         Reset();
         _settings.Debug?.WriteLine("Converting...");
-        if (_rc)
+        if (_settings.Rc)
         {
             // Make the drum channel last in the list, hopefully reducing the risk of it being used
             _midi.ChanReorder[9] = 15;
@@ -785,14 +763,14 @@ public class SongRipper
                 _midi.ChanReorder[j] = (byte)(j - 1);
         }
 
-        if (_gs)
+        if (_settings.Gs)
         {
             // GS reset
             _midi.AddSysex(s_gsResetSysex);
             _midi.AddSysex(s_part10NormalSysex);
         }
 
-        if (_xg)
+        if (_settings.Xg)
         {
             // XG reset
             _midi.AddSysex(s_xgSysex);
@@ -817,7 +795,7 @@ public class SongRipper
             _lfoFlag[i] = false;
 
             if (reverb < 0) // add reverb controller on all tracks
-                _midi.AddController(i, 91, (byte)(_lv ? (int)Math.Sqrt((reverb & 0x7f) * 127.0) : reverb & 0x7f));
+                _midi.AddController(i, 91, (byte)(_settings.Lv ? (int)Math.Sqrt((reverb & 0x7f) * 127.0) : reverb & 0x7f));
         }
 
         // Search for loop address of track #0
@@ -831,7 +809,7 @@ public class SongRipper
         for (int i = 0; i < 5; i++)
             if (_inGba.ReadUInt8LittleEndian() == 0xb2)
             {
-                s_loopFlag = true;
+                _loopFlag = true;
                 _loopAdr = _inGba.GetGbaPointer();
                 break;
             }
@@ -850,7 +828,7 @@ public class SongRipper
         }
 
         // If a loop was detected this is its end
-        if (s_loopFlag) _midi.AddMarker(Encoding.ASCII.GetBytes("loopEnd"));
+        if (_loopFlag) _midi.AddMarker(Encoding.ASCII.GetBytes("loopEnd"));
 
         _settings.Debug?.WriteLine($" Maximum simultaneous notes: {_simultaneousNotesMax}");
 

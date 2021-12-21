@@ -7,35 +7,17 @@ namespace GbaMus;
 /// </summary>
 public class SoundFontRipper
 {
-    private TextWriter? _tw;
-
-    private Stream _outSf2;
+    private TextWriter? _textWriter;
+    private Settings _settings;
+    private Sf2 _sf2;
+    private GbaInstr _instruments;
     private MemoryStream _inGba;
 
-    private bool _verboseFlag;
-    private bool _verboseOutputToFile;
     //private bool change_sample_rate;
-    private bool _gmPresetNames;
-
-    private uint _sampleRate = 22050;
-    private HashSet<uint> _addresses;
     private uint _currentAddress;
     private uint _currentBank;
     private uint _currentInstrument;
-    private uint _mainVolume = 15;
 
-    private Sf2 _sf2;
-    private GbaInstr _instruments;
-
-
-    private SoundFontRipper()
-    {
-        _addresses = new HashSet<uint>();
-        _sf2 = null!;
-        _instruments = null!;
-        _outSf2 = null!;
-        _inGba = null!;
-    }
 
     private static void PrintInstructions()
     {
@@ -56,9 +38,9 @@ public class SoundFontRipper
     // Add initial attenuation preset to balance between GameBoy and sampled instruments
     private void AddAttenuationPreset()
     {
-        if (_mainVolume < 15)
+        if (_settings.MainVolume < 15)
         {
-            ushort attenuation = (ushort)(100.0 * Math.Log(15.0 / _mainVolume));
+            ushort attenuation = (ushort)(100.0 * Math.Log(15.0 / _settings.MainVolume));
             _sf2.AddNewPresetGenerator(SfGenerator.InitialAttenuation, attenuation);
         }
     }
@@ -69,7 +51,7 @@ public class SoundFontRipper
     {
         byte instrType = (byte)(inst.Word0 & 0xff);
         string name;
-        if (_gmPresetNames)
+        if (_settings.GmPresetNames)
             name = s_generalMidiInstrNames[_currentInstrument];
         else
             // (poetic) name of the SF2 preset...
@@ -162,8 +144,6 @@ public class SoundFontRipper
                     break;
 
                 // Ignore other instrument types
-                default:
-                    break;
             }
 
             // If there is any error in the process just ignore it and silently continue
@@ -178,8 +158,9 @@ public class SoundFontRipper
     // Display verbose to console or output to file if requested
     private void Print(string s)
     {
-        if (_verboseFlag)
-            _tw?.Write(s);
+        if (!_settings.VerboseFlag) return;
+        if (_textWriter != null) _textWriter.Write(s);
+        else _settings.Debug?.Write(s);
     }
 
 // Display ADSR values used
@@ -190,7 +171,7 @@ public class SoundFontRipper
         int sustain = (int)((adsr >> 16) & 0xFF);
         int release = (int)(adsr >> 24);
         // Print ADSR values
-        _tw?.WriteLine($"      ADSR: {attack}, {decay}, {sustain}, {release}");
+        _settings.Debug?.WriteLine($"      ADSR: {attack}, {decay}, {sustain}, {release}");
     }
 
 // Display duty cycle used
@@ -204,7 +185,7 @@ public class SoundFontRipper
             3 => "75%",
             _ => throw new ArgumentOutOfRangeException()
         };
-        _tw?.WriteLine($"      Duty cycle: {cycle}");
+        _settings.Debug?.WriteLine($"      Duty cycle: {cycle}");
     }
 
 // This function read instrument data and outputs info on the screen or on the verbose file
@@ -215,7 +196,7 @@ public class SoundFontRipper
         if (inst.Word0 == 0x3c01 && inst.Word1 == 0x02 && inst.Word2 == 0x0F0000) return;
 
         byte instrType = (byte)(inst.Word0 & 0xff);
-        _tw?.Write($"  Type: 0x{instrType:x}  ");
+        _settings.Debug?.Write($"  Type: 0x{instrType:x}  ");
         switch (instrType)
         {
             // Sampled instruments
@@ -229,7 +210,7 @@ public class SoundFontRipper
             case 0x38:
                 {
                     uint sadr = inst.Word1 & 0x3ffffff;
-                    _tw?.WriteLine($"(sample @0x{sadr:x})");
+                    _settings.Debug?.WriteLine($"(sample @0x{sadr:x})");
 
                     try
                     {
@@ -239,23 +220,23 @@ public class SoundFontRipper
                         uint loopPos = _inGba.ReadUInt32LittleEndian();
                         uint len = _inGba.ReadUInt32LittleEndian();
 
-                        _tw?.WriteLine($"      Pitch: {pitch / 1024}");
-                        _tw?.WriteLine($"      Length: {len}");
+                        _settings.Debug?.WriteLine($"      Pitch: {pitch / 1024}");
+                        _settings.Debug?.WriteLine($"      Length: {len}");
 
                         if (loop == 0)
-                            _tw?.WriteLine("      Not looped");
+                            _settings.Debug?.WriteLine("      Not looped");
                         else if (loop == 0x40000000)
-                            _tw?.WriteLine($"      Loop enabled at: {loopPos}");
+                            _settings.Debug?.WriteLine($"      Loop enabled at: {loopPos}");
                         else if (loop == 0x1)
-                            _tw?.WriteLine("      BDPCM compressed");
+                            _settings.Debug?.WriteLine("      BDPCM compressed");
                         else
-                            _tw?.WriteLine("      Unknown loop type");
+                            _settings.Debug?.WriteLine("      Unknown loop type");
 
                         Adsr(inst.Word2);
                     }
                     catch
                     {
-                        _tw?.WriteLine("Error: Invalid instrument");
+                        _settings.Debug?.WriteLine("Error: Invalid instrument");
                     }
                 }
                 break;
@@ -264,9 +245,9 @@ public class SoundFontRipper
             case 1:
             case 9:
                 {
-                    _tw?.Write("(GB pulse channel 1)");
+                    _settings.Debug?.Write("(GB pulse channel 1)");
                     if ((byte)inst.Word0 != 8) // Display sweep if enabled on GB channel 1
-                        _tw?.WriteLine($"      Sweep: 0x{inst.Word0 & 0xFF:x}");
+                        _settings.Debug?.WriteLine($"      Sweep: 0x{inst.Word0 & 0xFF:x}");
 
                     Adsr(inst.Word2);
                     DutyCycle((int)inst.Word1);
@@ -278,7 +259,7 @@ public class SoundFontRipper
             case 10:
             case 18:
                 {
-                    _tw?.Write("(GB pulse channel 2)");
+                    _settings.Debug?.Write("(GB pulse channel 2)");
                     Adsr(inst.Word2);
                     DutyCycle((int)inst.Word1);
                 }
@@ -288,9 +269,9 @@ public class SoundFontRipper
             case 3:
             case 11:
                 {
-                    _tw?.Write("(GB channel 3)");
+                    _settings.Debug?.Write("(GB channel 3)");
                     Adsr(inst.Word2);
-                    _tw?.Write("      Waveform: ");
+                    _settings.Debug?.Write("      Waveform: ");
 
                     try
                     {
@@ -312,18 +293,18 @@ public class SoundFontRipper
                             for (int k = 0; k != 32; k++)
                             {
                                 if (waveform[k] == 2 * j)
-                                    _tw?.Write('_');
+                                    _settings.Debug?.Write('_');
                                 else if (waveform[k] == 2 * j + 1)
-                                    _tw?.Write('-');
+                                    _settings.Debug?.Write('-');
                                 else
-                                    _tw?.Write(' ');
+                                    _settings.Debug?.Write(' ');
                             }
-                            _tw?.WriteLine();
+                            _settings.Debug?.WriteLine();
                         }
                     }
                     catch
                     {
-                        _tw?.WriteLine("Error: Invalid instrument");
+                        _settings.Debug?.WriteLine("Error: Invalid instrument");
                     }
                 }
                 break;
@@ -331,18 +312,17 @@ public class SoundFontRipper
             // Noise instruments
             case 4:
             case 12:
-                _tw?.Write("(GB noise channel 4)");
+                _settings.Debug?.Write("(GB noise channel 4)");
                 Adsr(inst.Word2);
                 if (inst.Word1 == 0)
-                    _tw?.WriteLine("      long random sequence");
+                    _settings.Debug?.WriteLine("      long random sequence");
                 else
-                    _tw?.WriteLine("      short random sequence");
+                    _settings.Debug?.WriteLine("      short random sequence");
                 break;
 
             // Key-split instruments
             case 0x40:
-                _tw?.Write("Key-split instrument");
-
+                _settings.Debug?.Write("Key-split instrument");
                 if (!recursive)
                 {
                     bool[] keysUsed = new bool[128];
@@ -371,14 +351,13 @@ public class SoundFontRipper
                                     _inGba.Position = instrTable + 12 * k;
                                     // Read the addressed instrument
                                     InstData subInstr = _inGba.ReadStructure<InstData>();
-
-                                    _tw?.WriteLine();
-                                    _tw?.Write($"      Sub_instrument {k}");
+                                    _settings.Debug?.WriteLine();
+                                    _settings.Debug?.Write($"      Sub_instrument {k}");
                                     VerboseInstrument(subInstr, true);
                                 }
                                 catch
                                 {
-                                    _tw?.Write("Error: Invalid sub-instrument");
+                                    _settings.Debug?.Write("Error: Invalid sub-instrument");
                                 }
                             }
                         }
@@ -389,12 +368,12 @@ public class SoundFontRipper
                     }
                 }
                 else
-                    _tw?.Write("   Illegal double-recursive instrument!");
+                    _settings.Debug?.Write("   Illegal double-recursive instrument!");
                 break;
 
             // Every key split instruments
             case 0x80:
-                _tw?.Write("Every key split instrument");
+                _settings.Debug?.Write("Every key split instrument");
 
                 if (!recursive)
                 {
@@ -405,34 +384,39 @@ public class SoundFontRipper
                         {
                             _inGba.Position = address + k * 12;
                             InstData keyInstr = _inGba.ReadStructure<InstData>();
-
-                            _tw?.WriteLine();
-                            _tw?.Write($"   Key {k}");
+                            _settings.Debug?.WriteLine();
+                            _settings.Debug?.Write($"   Key {k}");
                             VerboseInstrument(keyInstr, true);
                         }
                         catch
                         {
-                            _tw?.Write("Error: Illegal sub-instrument");
+                            _settings.Debug?.Write("Error: Illegal sub-instrument");
                         }
                     }
                 }
                 else // Prevent instruments with multiple recursivities
-                    _tw?.Write("   Illegal double-recursive instrument!");
+                    _settings.Debug?.Write("   Illegal double-recursive instrument!");
                 break;
 
             default:
-                _tw?.Write("Unknown instrument type");
+                _settings.Debug?.Write("Unknown instrument type");
                 return;
         }
         if (recursive)
-            _tw?.WriteLine($"      Key: {(inst.Word1 >> 8)&0xFF}, Pan: {inst.Word1 >> 24}");
+            _settings.Debug?.WriteLine($"      Key: {(inst.Word1 >> 8) & 0xFF}, Pan: {inst.Word1 >> 24}");
     }
 
-    private void ParseArguments(string[] args)
+    private static void ParseArguments(string[] args, ref Settings settings, out TextWriter? fileTextWriter, out string inGbaFile, out string outSf2File)
     {
         if (args.Length == 0) PrintInstructions();
         bool infileFound = false;
         bool outfileFound = false;
+        List<uint> addresses = new();
+        bool verboseFlag = false, gmPresetNames = false;
+        uint sampleRate = 0, mainVolume = 0;
+        fileTextWriter = null;
+        inGbaFile = "";
+        outSf2File = "";
         for (int i = 0; i < args.Length; i++)
         {
             // Enable verbose if -v flag encountered in arguments list
@@ -440,20 +424,18 @@ public class SoundFontRipper
             {
                 if (args[i] == "-v")
                 {
-                    _verboseFlag = true;
+                    verboseFlag = true;
 
                     // Verbose to file if a file name is given
                     if (i < args.Length - 1 && args[i + 1][0] != '-')
                     {
-                        _verboseOutputToFile = true;
                         try
                         {
-                            _tw = File.CreateText(args[i].Substring(2));
+                            fileTextWriter = File.CreateText(args[i].Substring(2));
                         }
                         catch
                         {
-                            Console.WriteLine($"Invalid output log file: {args[i].Substring(2)}");
-                            throw new EnvironmentExitException(-1);
+                            throw new ArgumentException($"Invalid output log file: {args[i].Substring(2)}");
                         }
                     }
                 }
@@ -462,10 +444,9 @@ public class SoundFontRipper
                 else if (args[i][1] == 's')
                 {
                     //change_sample_rate = true;
-                    if (!uint.TryParse(args[i].Substring(2), out _sampleRate))
+                    if (!uint.TryParse(args[i].Substring(2), out sampleRate))
                     {
-                        Console.Error.WriteLine($"Error: sampling rate {args[i].Substring(2)} is not a valid number.");
-                        throw new EnvironmentExitException(-1);
+                        throw new ArgumentException($"Error: sampling rate {args[i].Substring(2)} is not a valid number.");
                     }
                 }
 
@@ -474,13 +455,12 @@ public class SoundFontRipper
                 {
                     if (!uint.TryParse(args[i].Substring(3), out uint volume) || volume is 0 or > 15)
                     {
-                        Console.Error.WriteLine($"Error: main volume {args[i].Substring(3)} is not valid (should be 0-15).");
-                        throw new EnvironmentExitException(-1);
+                        throw new ArgumentException($"Error: main volume {args[i].Substring(3)} is not valid (should be 0-15).");
                     }
-                    _mainVolume = volume;
+                    mainVolume = volume;
                 }
                 else if (args[i] == "-gm")
-                    _gmPresetNames = true;
+                    gmPresetNames = true;
                 else if (args[i] == "--help")
                 {
                     PrintInstructions();
@@ -488,22 +468,11 @@ public class SoundFontRipper
                 }
             }
 
-            // Try to parse an address and add it to list if succes
             else if (!infileFound)
             {
                 // Input File
                 infileFound = true;
-                try
-                {
-                    using var fs = File.OpenRead(args[0]);
-                    _inGba = new MemoryStream();
-                    fs.CopyTo(_inGba);
-                }
-                catch
-                {
-                    Console.Error.WriteLine($"Can't read input GBA file: {args[0]}");
-                    throw new EnvironmentExitException(-1);
-                }
+                inGbaFile = args[i];
             }
             else if (!outfileFound)
             {
@@ -514,46 +483,67 @@ public class SoundFontRipper
                     // Append ".sf2" after the given file name if there isn't it already
                     fn += ".sf2";
                 }
-
-                try
-                {
-                    _outSf2 = File.Create(fn);
-                }
-                catch
-                {
-                    Console.Error.WriteLine($"Can't write to file: {fn}");
-                    throw new EnvironmentExitException(-1);
-                }
+                outSf2File = fn;
             }
             else
             {
                 string arg = args[i];
-                if (arg.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase))
-                    arg = arg.Substring(2);
                 if (!InternalUtils.TryParseUIntHd(arg, out uint address))
                 {
                     PrintInstructions();
                     throw new EnvironmentExitException(0);
                 }
-                _addresses.Add(address);
+                addresses.Add(address);
             }
         }
         // Diagnostize errors/missing information
         if (!infileFound)
         {
-            Console.Error.WriteLine("An input .gba file should be given. Use --help for more information.");
-            throw new EnvironmentExitException(-1);
+            throw new ArgumentException("An input .gba file should be given. Use --help for more information.");
         }
         if (!outfileFound)
         {
-            Console.Error.WriteLine("An output .sf2 file should be given. Use --help for more information.");
-            throw new EnvironmentExitException(-1);
+            throw new ArgumentException("An output .sf2 file should be given. Use --help for more information.");
         }
-        if (!_addresses.Any())
+        if (!addresses.Any())
         {
-            Console.Error.WriteLine("At least one adress should be given for decoding. Use --help for more information.");
-            throw new EnvironmentExitException(-1);
+            throw new ArgumentException("At least one address should be given for decoding. Use --help for more information.");
         }
+        settings = settings with
+        {
+            Addresses = addresses,
+            VerboseFlag = verboseFlag,
+            GmPresetNames = gmPresetNames,
+            SampleRate = sampleRate,
+            MainVolume = mainVolume
+        };
+    }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="SoundFontRipper"/> with the specified source stream and settings.
+    /// </summary>
+    /// <param name="stream">Source stream.</param>
+    /// <param name="settings">Settings.</param>
+    /// <param name="fileTextWriter">Optional debugging output.</param>
+    public SoundFontRipper(Stream stream, Settings settings, TextWriter? fileTextWriter = null)
+    {
+        _settings = settings;
+        _textWriter = fileTextWriter;
+        _inGba = new MemoryStream();
+        stream.CopyTo(_inGba);
+        // Create SF2 class
+        _sf2 = new Sf2(_settings.SampleRate);
+        _instruments = new GbaInstr(_sf2);
+    }
+
+    private SoundFontRipper(MemoryStream stream, Settings settings, TextWriter? fileTextWriter = null)
+    {
+        _settings = settings;
+        _textWriter = fileTextWriter;
+        _inGba = stream;
+        // Create SF2 class
+        _sf2 = new Sf2(_settings.SampleRate);
+        _instruments = new GbaInstr(_sf2);
     }
 
     /// <summary>
@@ -563,31 +553,78 @@ public class SoundFontRipper
     /// <returns>Something.</returns>
     public static int Main(string[] args)
     {
-        SoundFontRipper sfr = new();
-        return sfr.MainInternal(args);
+        return MainInternal(args);
     }
 
-    private int MainInternal(string[] args)
+    private static int MainInternal(string[] args)
     {
-        Console.WriteLine("GBA ROM sound font ripper (c) 2012 Bregalad");
+        Settings settings = new(Console.Out, Console.Error, Array.Empty<uint>());
+        settings.Debug?.WriteLine("GBA ROM sound font ripper (c) 2012 Bregalad");
 
         // Parse arguments without the program name
-        ParseArguments(args);
+        TextWriter? fileTextWriter;
+        string inGbaFile;
+        string outSf2File;
+        try
+        {
+            ParseArguments(args, ref settings, out fileTextWriter, out inGbaFile, out outSf2File);
+        }
+        catch (ArgumentException e)
+        {
+            Console.WriteLine(e);
+            return -1;
+        }
+        catch (EnvironmentExitException e)
+        {
+            return e.Code;
+        }
 
-        if (_verboseFlag && !_verboseOutputToFile) _tw = Console.Out;
+        MemoryStream inGba = new();
+        try
+        {
+            using var fs = File.OpenRead(inGbaFile);
+            fs.CopyTo(inGba);
+        }
+        catch
+        {
+            Console.Error.WriteLine($"Can't read input GBA file: {inGbaFile}");
+            throw new EnvironmentExitException(-1);
+        }
 
-        // Compute prefix (path) of this program's name
+        Stream outSf2Src;
+        try
+        {
+            outSf2Src = File.Create(outSf2File);
+        }
+        catch
+        {
+            Console.Error.WriteLine($"Can't write to file: {outSf2File}");
+            throw new EnvironmentExitException(-1);
+        }
+        using Stream outSf2 = outSf2Src;
+        if (settings.VerboseFlag && fileTextWriter != null) settings = settings with { Debug = fileTextWriter };
 
-        // Create SF2 class
-        _sf2 = new Sf2(_sampleRate);
-        _instruments = new GbaInstr(_sf2);
+        SoundFontRipper r = new(inGba, settings, fileTextWriter);
+        try
+        {
+            r.Write(outSf2);
+        }
+        catch (IOException e)
+        {
+            settings.Debug?.WriteLine(e);
+            return 0;
+        }
+        return 0;
+    }
 
+    private void Write(Stream stream)
+    {
         // Read instrument data from input GBA file
         InstData[] instrData = new InstData[128];
 
         // Decode all banks
         _currentBank = 0;
-        var ad = _addresses.ToList();
+        var ad = _settings.Addresses.ToList();
         for (int i = 0; i < ad.Count; i++, ++_currentBank)
         {
             _currentAddress = ad[i];
@@ -608,8 +645,7 @@ public class SoundFontRipper
             }
             catch
             {
-                Console.Error.WriteLine($"Error: Invalid position within input GBA file: 0x{_currentAddress:x}");
-                return 0;
+                throw new IOException($"Error: Invalid position within input GBA file: 0x{_currentAddress:x}");
             }
 
             // Decode all instruments
@@ -626,27 +662,34 @@ public class SoundFontRipper
                     continue;
                 }
 
-                if (_verboseFlag)
+                if (_settings.VerboseFlag)
                     VerboseInstrument(instrData[_currentInstrument], false);
 
                 // Build equivalent SF2 instrument
                 BuildInstrument(instrData[_currentInstrument]);
             }
         }
-
-        if (_verboseOutputToFile)
+        if (_textWriter != null)
         {
             Print("\n\n EOF");
-            _tw?.Close();
+            _textWriter.Dispose();
         }
-
-        Console.Write("Dump complete, now outputting SF2 data...");
-
-        _sf2.Write(_outSf2);
-        _outSf2.Close();
-        if (_verboseOutputToFile) _tw?.Dispose();
-
-        Console.WriteLine(" Done!");
-        return 0;
+        _settings.Debug?.Write("Dump complete, now outputting SF2 data...");
+        _sf2.Write(stream);
+        _settings.Debug?.WriteLine(" Done!");
     }
+
+    /// <summary>
+    /// Settings for sound font ripper.
+    /// </summary>
+    /// <param name="Debug">Debug output.</param>
+    /// <param name="Error">Error output.</param>
+    /// <param name="Addresses">Sound bank addresses.</param>
+    /// <param name="VerboseFlag">Display info about the sound font in text format.</param>
+    /// <param name="GmPresetNames">Give General MIDI names to presets. Note that this will only change the names and will NOT magically turn the soundfont into a General MIDI compliant soundfont.</param>
+    /// <param name="SampleRate">Sampling rate for samples. Default: 22050 Hz</param>
+    /// <param name="MainVolume">Main volume for sample instruments. Range: 1-15. Game Boy channels are unaffected.</param>
+    public record Settings(TextWriter? Debug, TextWriter? Error,
+        IReadOnlyCollection<uint> Addresses, bool VerboseFlag = false, bool GmPresetNames = false,
+        uint SampleRate = 22050, uint MainVolume = 15) : ToolSettings(Debug, Error);
 }
