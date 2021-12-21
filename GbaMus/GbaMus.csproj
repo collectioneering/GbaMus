@@ -10,8 +10,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="goldensun_synth.raw" CopyToOutputDirectory="PreserveNewest" />
-    <EmbeddedResource Include="psg_data.raw" CopyToOutputDirectory="PreserveNewest" />
+    <EmbeddedResource Include="goldensun_synth.raw" />
+    <EmbeddedResource Include="psg_data.raw" />
   </ItemGroup>
   
   <ItemGroup>

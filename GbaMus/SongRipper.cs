@@ -349,7 +349,7 @@ public class SongRipper
 
             // Set instrument
             case 0xbd:
-                if (_settings.BankNumber is {} bn)
+                if (_settings.BankNumber is { } bn)
                 {
                     if (!_settings.Xg)
                         _midi.AddController(track, 0, (byte)bn);
@@ -849,7 +849,7 @@ public class SongRipper
     /// <param name="Sv">Simulate vibrato. This will insert controllers in real time to simulate a vibrato, instead of just when commands are given. Like -lv, this should be used to have the output \"sound\" like the original song, but shouldn't be used to get an exact dump of sequence data.</param>
     /// <param name="BankNumber">Forces all patches to be in the specified bank (0-127).</param>
     /// <param name="BaseAddress">Base address of song.</param>
-    public record Settings(TextWriter? Debug, TextWriter? Error,
+    public record Settings(TextWriter? Debug = null, TextWriter? Error = null,
             bool Rc = false, bool Gs = false, bool Xg = false, bool Lv = false, bool Sv = false,
             int? BankNumber = null, uint BaseAddress = 0)
         : ToolSettings(Debug, Error);

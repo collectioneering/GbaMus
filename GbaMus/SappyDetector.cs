@@ -286,7 +286,7 @@ public static class SappyDetector
     /// </summary>
     /// <param name="buffer">Buffer to search.</param>
     /// <param name="settings">Settings.</param>
-    /// <returns>Found offset, or 0/</returns>
+    /// <returns>Found offset, or 0.</returns>
     public static int Find(ReadOnlySpan<byte> buffer, ToolSettings settings)
     {
         long offset = M4ASearchBlock(buffer, settings.Debug);

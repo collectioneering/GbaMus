@@ -529,18 +529,15 @@ public class SoundFontRipper
     {
         _settings = settings;
         _textWriter = fileTextWriter;
-        _inGba = new MemoryStream();
-        stream.CopyTo(_inGba);
-        // Create SF2 class
-        _sf2 = new Sf2(_settings.SampleRate);
-        _instruments = new GbaInstr(_sf2);
-    }
-
-    private SoundFontRipper(MemoryStream stream, Settings settings, TextWriter? fileTextWriter = null)
-    {
-        _settings = settings;
-        _textWriter = fileTextWriter;
-        _inGba = stream;
+        if (stream is MemoryStream ms)
+        {
+            _inGba = ms;
+        }
+        else
+        {
+            _inGba = new MemoryStream();
+            stream.CopyTo(_inGba);
+        }
         // Create SF2 class
         _sf2 = new Sf2(_settings.SampleRate);
         _instruments = new GbaInstr(_sf2);
@@ -617,7 +614,12 @@ public class SoundFontRipper
         return 0;
     }
 
-    private void Write(Stream stream)
+    /// <summary>
+    /// Writes output for soundbank to stream.
+    /// </summary>
+    /// <param name="stream">Stream to write to.</param>
+    /// <exception cref="IOException">Thrown on an I/O exception.</exception>
+    public void Write(Stream stream)
     {
         // Read instrument data from input GBA file
         InstData[] instrData = new InstData[128];
@@ -689,7 +691,7 @@ public class SoundFontRipper
     /// <param name="GmPresetNames">Give General MIDI names to presets. Note that this will only change the names and will NOT magically turn the soundfont into a General MIDI compliant soundfont.</param>
     /// <param name="SampleRate">Sampling rate for samples. Default: 22050 Hz</param>
     /// <param name="MainVolume">Main volume for sample instruments. Range: 1-15. Game Boy channels are unaffected.</param>
-    public record Settings(TextWriter? Debug, TextWriter? Error,
-        IReadOnlyCollection<uint> Addresses, bool VerboseFlag = false, bool GmPresetNames = false,
+    public record Settings(TextWriter? Debug = null, TextWriter? Error = null, IReadOnlyCollection<uint> Addresses = null!,
+        bool VerboseFlag = false, bool GmPresetNames = false,
         uint SampleRate = 22050, uint MainVolume = 15) : ToolSettings(Debug, Error);
 }
