@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GbaMus.Test", "GbaMus.Test\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SappyDetector", "SappyDetector\SappyDetector.csproj", "{8FCA0898-21EC-42E4-A078-25529DB81562}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SoundFontRipper", "SoundFontRipper\SoundFontRipper.csproj", "{8EEB6F51-F9BB-4485-B5E4-691FB4E532EC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,9 @@ Global
 		{8FCA0898-21EC-42E4-A078-25529DB81562}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8FCA0898-21EC-42E4-A078-25529DB81562}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8FCA0898-21EC-42E4-A078-25529DB81562}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8EEB6F51-F9BB-4485-B5E4-691FB4E532EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8EEB6F51-F9BB-4485-B5E4-691FB4E532EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8EEB6F51-F9BB-4485-B5E4-691FB4E532EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8EEB6F51-F9BB-4485-B5E4-691FB4E532EC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

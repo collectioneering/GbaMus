@@ -118,6 +118,23 @@ internal static class InternalUtils
         }
     }
 
+    public static unsafe T ReadStructure<T>(this Stream stream, int? size = null) where T : unmanaged
+    {
+        int s = Math.Min(size ?? sizeof(T), sizeof(T));
+        byte[] arr = ArrayPool<byte>.Shared.Rent(s);
+        try
+        {
+            T v = default;
+            stream.ForceRead(arr, 0, s);
+            arr.AsSpan(0, s).CopyTo(new Span<byte>(&v, s));
+            return v;
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(arr);
+        }
+    }
+
     public static void ForceRead(this Stream stream, byte[] buffer, int offset, int count)
     {
         if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));

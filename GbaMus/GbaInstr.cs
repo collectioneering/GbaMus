@@ -157,7 +157,7 @@ public class GbaInstr
         int sampleIndex = Samples.BuildSample(stream, samplePointer);
 
         // Instrument's name
-        string name = $"sample @0x{samplePointer:X}";
+        string name = $"sample @0x{samplePointer:x}";
 
         // Create instrument bag
         Sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
@@ -191,7 +191,7 @@ public class GbaInstr
         // But there was too much differences to handles to practically handle it with flags
         // therefore I didn't really had a choice.
         uint baseAddress = inst.Word1 & 0x3ffffff;
-        string name = $"EveryKeySplit @0x{baseAddress:X}";
+        string name = $"EveryKeySplit @0x{baseAddress:x}";
         Sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
 
         // Loop through all keys
@@ -320,7 +320,7 @@ public class GbaInstr
         stream.Position = keyTable;
 
         // Add instrument to list
-        string name = $"0x{basePointer:X} key split";
+        string name = $"0x{basePointer:x} key split";
         Sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
 
         do
@@ -420,7 +420,7 @@ public class GbaInstr
 
         int sample = Samples.BuildGb3Samples(stream, samplePointer);
 
-        string name = $"GB3 @0x{samplePointer:X}";
+        string name = $"GB3 @0x{samplePointer:x}";
         Sf2.AddNewInstrument(Encoding.ASCII.GetBytes(name));
 
         // Global zone
@@ -451,10 +451,9 @@ public class GbaInstr
     /// <summary>
     /// Builds GameBoy pulse wave instrument.
     /// </summary>
-    /// <param name="stream">Stream to read from.</param>
     /// <param name="inst">Instrument to build.</param>
     /// <returns>Instrument index.</returns>
-    public int BuildPulseInstrument(Stream stream, InstData inst)
+    public int BuildPulseInstrument(InstData inst)
     {
         // Do nothing if this instrument already exists !
         if (InstMap.TryGetValue(inst, out int v)) return v;

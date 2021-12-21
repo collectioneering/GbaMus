@@ -5,8 +5,8 @@ namespace GbaMus;
 /// <summary>
 /// Instrument data.
 /// </summary>
-[StructLayout(LayoutKind.Explicit)]
-public readonly struct InstData : IComparable<InstData>
+[StructLayout(LayoutKind.Explicit, Size = 12)]
+public readonly struct InstData : IComparable<InstData>, IEquatable<InstData>
 {
     /// <summary>
     /// Word 0.
@@ -29,5 +29,19 @@ public readonly struct InstData : IComparable<InstData>
         int word1Comparison = Word1.CompareTo(other.Word1);
         if (word1Comparison != 0) return word1Comparison;
         return Word0.CompareTo(other.Word0);
+    }
+
+    /// <inheritdoc />
+    public bool Equals(InstData other) => Word0 == other.Word0 && Word1 == other.Word1 && Word2 == other.Word2;
+
+    public override bool Equals(object? obj) => obj is InstData other && Equals(other);
+
+    public override int GetHashCode() {
+        unchecked {
+            var hashCode = (int)Word0;
+            hashCode = (hashCode * 397) ^ (int)Word1;
+            hashCode = (hashCode * 397) ^ (int)Word2;
+            return hashCode;
+        }
     }
 }

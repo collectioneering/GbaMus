@@ -103,7 +103,7 @@ public static class SappyDetector
             if (m4a_selectsong_offset != -1)
             {
 #if DEBUG
-                Console.WriteLine($"Selectsong candidate: {m4a_selectsong_offset:X8}");
+                Console.WriteLine($"Selectsong candidate: {m4a_selectsong_offset:x8}");
 #endif
 
                 // obtain song table address
@@ -111,7 +111,7 @@ public static class SappyDetector
                 if (!is_gba_rom_address(m4a_songtable_address))
                 {
 #if DEBUG
-                    Console.WriteLine($"Song table address error: not a ROM address {m4a_songtable_address:X8}");
+                    Console.WriteLine($"Song table address error: not a ROM address {m4a_songtable_address:x8}");
 #endif
                     m4a_selectsong_search_offset = m4a_selectsong_offset + 1;
                     continue;
@@ -120,7 +120,7 @@ public static class SappyDetector
                 if (!is_valid_offset(m4a_songtable_offset_tmp + 4 - 1, (uint)gbarom.Length))
                 {
 #if DEBUG
-                    Console.WriteLine($"Song table address error: address out of range {m4a_songtable_address:X8}");
+                    Console.WriteLine($"Song table address error: address out of range {m4a_songtable_address:x8}");
 #endif
                     m4a_selectsong_search_offset = m4a_selectsong_offset + 1;
                     continue;
@@ -145,14 +145,14 @@ public static class SappyDetector
                     if (!is_gba_rom_address(songaddr))
                     {
 #if DEBUG
-                        Console.WriteLine($"Song address error: not a ROM address {songaddr:X8}");
+                        Console.WriteLine($"Song address error: not a ROM address {songaddr:x8}");
 #endif
                         break;
                     }
                     if (!is_valid_offset(gba_address_to_offset(songaddr) + 4 - 1, (uint)gbarom.Length))
                     {
 #if DEBUG
-                        Console.WriteLine($"Song address error: address out of range {songaddr:X8}");
+                        Console.WriteLine($"Song address error: address out of range {songaddr:x8}");
 #endif
                         break;
                     }
@@ -295,7 +295,7 @@ public static class SappyDetector
             Console.WriteLine("No sound engine was found.");
             return 0;
         }
-        Console.WriteLine($"Sound engine detected at offset 0x{offset:X}");
+        Console.WriteLine($"Sound engine detected at offset 0x{offset:x}");
 
         /* Test validity of engine offset with -16 and -32 */
         bool valid_m16 = test_pointer_validity(inGBA.AsSpan((int)(offset - 16)));
@@ -319,7 +319,7 @@ public static class SappyDetector
         // At this point we can be certain we detected the real thing.
         Console.WriteLine("Engine parameters:");
         Console.WriteLine($"Main Volume: {p.MainVol} Polyphony: {p.Polyphony} channels, Dac: {17 - p.DacBits} bits, Sampling rate: {s_lookup[p.SamplingRateIndex]}");
-        Console.WriteLine($"Song table located at: 0x{song_tbl_adr:X}");
+        Console.WriteLine($"Song table located at: 0x{song_tbl_adr:x}");
         /* Return the offset of sappy info to the operating system */
         return (int)offset;
     }

@@ -151,7 +151,7 @@ internal unsafe struct SfPresetHeaderContent
     public unsafe SfPresetHeaderContent(Sf2 sf2, ReadOnlySpan<byte> name, ushort patch, ushort bank)
     {
         fixed (byte* b = AchPresetName)
-            name.CopyTo(new Span<byte>(b, 20));
+            name.Slice(0, Math.Min(20, name.Length)).CopyTo(new Span<byte>(b, 20));
         WPreset = patch;
         WBank = bank;
         DwLibrary = 0;
@@ -366,7 +366,7 @@ public readonly struct SfGenList
 [StructLayout(LayoutKind.Explicit, Size = 4)]
 internal struct SfGenListContent
 {
-    [FieldOffset(2)] private readonly SfGenerator SfGenOper;
+    [FieldOffset(0)] private readonly SfGenerator SfGenOper;
     [FieldOffset(2)] private readonly GenAmountType GenAmount;
 
     public SfGenListContent()
@@ -432,7 +432,7 @@ internal unsafe struct SfInstContent
     public unsafe SfInstContent(Sf2 sf2, ReadOnlySpan<byte> name)
     {
         fixed (byte* b = AchPresetName)
-            name.CopyTo(new Span<byte>(b, 20));
+            name.Slice(0, Math.Min(20, name.Length)).CopyTo(new Span<byte>(b, 20));
         WInstBagNx = sf2.GetIbagSize();
     }
 }
@@ -508,7 +508,7 @@ internal unsafe struct SfSampleContent
     public unsafe SfSampleContent(ReadOnlySpan<byte> name, uint start, uint end, uint startLoop, uint endLoop, uint sampleRate, sbyte originalPitch, sbyte pitchCorrection)
     {
         fixed (byte* b = AchPresetName)
-            name.CopyTo(new Span<byte>(b, 20));
+            name.Slice(0, Math.Min(20, name.Length)).CopyTo(new Span<byte>(b, 20));
         dwStart = start;
         dwEnd = end;
         dwStartloop = startLoop;
@@ -600,7 +600,11 @@ public class HeaderSubChunk : Sf2Chunks
 /// </summary>
 public class SMPLSubChunk : Sf2Chunks
 {
-    private static readonly byte[] s_convTbl = { 0x00, 0xC0, 0x00, 0xC8, 0x00, 0xD0, 0x00, 0xD8, 0x00, 0xE0, 0x00, 0xE8, 0x00, 0xF0, 0x00, 0xF8, 0x00, 0x00, 0x00, 0x08, 0x00, 0x10, 0x00, 0x18, 0x00, 0x20, 0x00, 0x28, 0x00, 0x30, 0x00, 0x38 };
+    /// <summary>
+    /// ORIGINAL TABLE (TODO check if this is some mistake)
+    /// </summary>
+    private static readonly byte[] s_convTbl = { 0x00, 0xC0, 0x00, 0xC8, 0x00, 0xD0, 0x00, 0xD8, 0x00, 0xE0, 0x00, 0xE8, 0x00, 0xFF, 0x00, 0xF8, 0x00, 0x00, 0x00, 0x08, 0x00, 0x10, 0x00, 0x18, 0x00, 0x20, 0x00, 0x28, 0x00, 0x30, 0x00, 0x38 };
+    //private static readonly byte[] s_convTbl = { 0x00, 0xC0, 0x00, 0xC8, 0x00, 0xD0, 0x00, 0xD8, 0x00, 0xE0, 0x00, 0xE8, 0x00, 0xF0, 0x00, 0xF8, 0x00, 0x00, 0x00, 0x08, 0x00, 0x10, 0x00, 0x18, 0x00, 0x20, 0x00, 0x28, 0x00, 0x30, 0x00, 0x38 };
     private static readonly sbyte[] s_deltaLut = { 0, 1, 4, 9, 16, 25, 36, 49, -64, -49, -36, -25, -16, -9, -4, -1 };
     private static readonly byte[] s_dummy46Samples = new byte[2 * 46];
     private readonly List<Stream> FileList;
@@ -659,10 +663,11 @@ public class SMPLSubChunk : Sf2Chunks
         WriteHead();
         for (int i = 0; i < FileList.Count; i++)
         {
-            FileList[i].Position = PointerList[i];
-            uint size = SizeList[i];
             Stream stream = FileList[i];
+            stream.Position = PointerList[i];
+            uint size = SizeList[i];
             byte[] outBuf = ArrayPool<byte>.Shared.Rent((int)(2 * size));
+            outBuf.AsSpan().Clear();
             try
             {
                 switch (SampleTypeList[i])
@@ -670,6 +675,7 @@ public class SMPLSubChunk : Sf2Chunks
                     case SampleType.UNSIGNED_8:
                         {
                             byte[] data = ArrayPool<byte>.Shared.Rent((int)size);
+                            data.AsSpan().Clear();
                             try
                             {
                                 stream.ForceRead(data, 0, (int)size);
@@ -685,6 +691,7 @@ public class SMPLSubChunk : Sf2Chunks
                     case SampleType.SIGNED_8:
                         {
                             byte[] data = ArrayPool<byte>.Shared.Rent((int)size);
+                            data.AsSpan().Clear();
                             try
                             {
                                 stream.ForceRead(data, 0, (int)size);
@@ -706,6 +713,7 @@ public class SMPLSubChunk : Sf2Chunks
                         {
                             uint numOfRepts = size / 32;
                             byte[] data = ArrayPool<byte>.Shared.Rent(16);
+                            data.AsSpan().Clear();
                             try
                             {
                                 stream.ForceRead(data, 0, 16);
@@ -719,7 +727,7 @@ public class SMPLSubChunk : Sf2Chunks
                                     }
                                     for (uint k = numOfRepts; k != 0; k--, l++)
                                     {
-                                        int v = data[j] * 0xf;
+                                        int v = data[j] & 0xf;
                                         outBuf[2 * l] = s_convTbl[v * 2];
                                         outBuf[2 * l + 1] = s_convTbl[v * 2 + 1];
                                     }
@@ -735,6 +743,7 @@ public class SMPLSubChunk : Sf2Chunks
                         {
                             uint nBlocks = size / 64;
                             byte[] data = ArrayPool<byte>.Shared.Rent((int)(nBlocks * 33));
+                            data.AsSpan().Clear();
                             stream.ForceRead(data, 0, (int)(nBlocks * 33));
                             try
                             {
@@ -774,7 +783,6 @@ public class SMPLSubChunk : Sf2Chunks
                 ArrayPool<byte>.Shared.Return(outBuf);
             }
         }
-        throw new NotImplementedException();
     }
 }
 

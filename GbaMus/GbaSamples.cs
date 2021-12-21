@@ -82,7 +82,7 @@ public class GbaSamples
             {
                 case 0: // Square wave
                     {
-                        string name = $"Square @0x{pointer:X}";
+                        string name = $"Square @0x{pointer:x}";
                         byte dutyCycle = stream.ReadUInt8LittleEndian();
                         byte changeSpeed = stream.ReadUInt8LittleEndian();
                         if (changeSpeed == 0)
@@ -101,14 +101,14 @@ public class GbaSamples
 
                 case 1: // Saw wave
                     {
-                        string name = $"Saw @0x{pointer:X}";
+                        string name = $"Saw @0x{pointer:x}";
                         Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.UNSIGNED_8, Encoding.ASCII.GetBytes(name), 0, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
                     }
                     break;
 
                 case 2: // Triangle wave
                     {
-                        string name = $"Triangle @0x{pointer:X}";
+                        string name = $"Triangle @0x{pointer:x}";
                         Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.UNSIGNED_8, Encoding.ASCII.GetBytes(name), 64, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
                     }
                     break;
@@ -130,7 +130,7 @@ public class GbaSamples
             }
 
             // Create (poetic) instrument name
-            string name = bdpcmEn ? $"BDPCM @0x{pointer:X}" : $"Sample @0x{pointer:X}";
+            string name = bdpcmEn ? $"BDPCM @0x{pointer:x}" : $"Sample @0x{pointer:x}";
 
             // Add the sample to output
             Sf2.AddNewSample(stream, bdpcmEn ? SampleType.BDPCM : SampleType.SIGNED_8, Encoding.ASCII.GetBytes(name), pointer + 16, len, loopEn, loopPos, (sbyte)originalPitch, (sbyte)pitchCorrection);
@@ -152,7 +152,7 @@ public class GbaSamples
             if (SamplesList[i] == pointer)
                 return i;
 
-        string name = $"GB3 @0x{pointer:X}";
+        string name = $"GB3 @0x{pointer:x}";
 
         Sf2.AddNewSample(stream, SampleType.GAMEBOY_CH3, Encoding.ASCII.GetBytes(name + 'A'), pointer, 256, true, 0, 53, 24, 22050);
         Sf2.AddNewSample(stream, SampleType.GAMEBOY_CH3, Encoding.ASCII.GetBytes(name + 'B'), pointer, 128, true, 0, 65, 24, 22050);
