@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 
 namespace GbaMus;
@@ -13,10 +12,10 @@ public class SoundFontRipper
     private Stream outSf2;
     private MemoryStream inGBA;
 
-    private bool verbose_flag = false;
-    private bool verbose_output_to_file = false;
-    private bool change_sample_rate = false;
-    private bool gm_preset_names = false;
+    private bool verbose_flag;
+    private bool verbose_output_to_file;
+    //private bool change_sample_rate;
+    private bool gm_preset_names;
 
     private uint sample_rate = 22050;
     private HashSet<uint> addresses;
@@ -172,7 +171,7 @@ public class SoundFontRipper
         }
         catch
         {
-            //throw; // TODO disable
+            // ignored
         }
     }
 
@@ -377,7 +376,7 @@ public class SoundFontRipper
                                     tw?.Write($"      Sub_instrument {k}");
                                     verbose_instrument(subInstr, true);
                                 }
-                                catch(Exception e)
+                                catch
                                 {
                                     tw?.Write("Error: Invalid sub-instrument");
                                 }
@@ -386,6 +385,7 @@ public class SoundFontRipper
                     }
                     catch
                     {
+                        // Ignored
                     }
                 }
                 else
@@ -453,7 +453,7 @@ public class SoundFontRipper
                         catch
                         {
                             Console.WriteLine($"Invalid output log file: {args[i].Substring(2)}");
-                            Environment.Exit(-1);
+                            throw new EnvironmentExitException(-1);
                         }
                     }
                 }
@@ -461,11 +461,11 @@ public class SoundFontRipper
                 // Change sampling rate if -s is encountered
                 else if (args[i][1] == 's')
                 {
-                    change_sample_rate = true;
+                    //change_sample_rate = true;
                     if (!uint.TryParse(args[i].Substring(2), out sample_rate))
                     {
                         Console.Error.WriteLine($"Error: sampling rate {args[i].Substring(2)} is not a valid number.");
-                        Environment.Exit(-1);
+                        throw new EnvironmentExitException(-1);
                     }
                 }
 
@@ -475,7 +475,7 @@ public class SoundFontRipper
                     if (!uint.TryParse(args[i].Substring(3), out uint volume) || volume == 0 || volume > 15)
                     {
                         Console.Error.WriteLine($"Error: main volume {args[i].Substring(3)} is not valid (should be 0-15).");
-                        Environment.Exit(-1);
+                        throw new EnvironmentExitException(-1);
                     }
                     main_volume = volume;
                 }
@@ -484,7 +484,7 @@ public class SoundFontRipper
                 else if (args[i] == "--help")
                 {
                     print_instructions();
-                    Environment.Exit(0);
+                    throw new EnvironmentExitException(0);
                 }
             }
 
@@ -502,7 +502,7 @@ public class SoundFontRipper
                 catch
                 {
                     Console.Error.WriteLine($"Can't read input GBA file: {args[0]}");
-                    Environment.Exit(-1);
+                    throw new EnvironmentExitException(-1);
                 }
             }
             else if (!outfile_found)
@@ -522,7 +522,7 @@ public class SoundFontRipper
                 catch
                 {
                     Console.Error.WriteLine($"Can't write to file: {fn}");
-                    Environment.Exit(-1);
+                    throw new EnvironmentExitException(-1);
                 }
             }
             else
@@ -530,10 +530,10 @@ public class SoundFontRipper
                 string arg = args[i];
                 if (arg.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase))
                     arg = arg.Substring(2);
-                if (!uint.TryParse(arg, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint address))
+                if (!InternalUtils.TryParseUIntHD(arg, out uint address))
                 {
                     print_instructions();
-                    Environment.Exit(0);
+                    throw new EnvironmentExitException(0);
                 }
                 addresses.Add(address);
             }
@@ -542,17 +542,17 @@ public class SoundFontRipper
         if (!infile_found)
         {
             Console.Error.WriteLine("An input .gba file should be given. Use --help for more information.");
-            Environment.Exit(-1);
+            throw new EnvironmentExitException(-1);
         }
         if (!outfile_found)
         {
             Console.Error.WriteLine("An output .sf2 file should be given. Use --help for more information.");
-            Environment.Exit(-1);
+            throw new EnvironmentExitException(-1);
         }
         if (!addresses.Any())
         {
             Console.Error.WriteLine("At least one adress should be given for decoding. Use --help for more information.");
-            Environment.Exit(-1);
+            throw new EnvironmentExitException(-1);
         }
     }
 
@@ -649,6 +649,4 @@ public class SoundFontRipper
         Console.WriteLine(" Done!");
         return 0;
     }
-
-// TODO
 }

@@ -34,11 +34,15 @@ public readonly struct InstData : IComparable<InstData>, IEquatable<InstData>
     /// <inheritdoc />
     public bool Equals(InstData other) => Word0 == other.Word0 && Word1 == other.Word1 && Word2 == other.Word2;
 
+    /// <inheritdoc />
     public override bool Equals(object? obj) => obj is InstData other && Equals(other);
 
-    public override int GetHashCode() {
-        unchecked {
-            var hashCode = (int)Word0;
+    /// <inheritdoc />
+    public override int GetHashCode()
+    {
+        unchecked
+        {
+            int hashCode = (int)Word0;
             hashCode = (hashCode * 397) ^ (int)Word1;
             hashCode = (hashCode * 397) ^ (int)Word2;
             return hashCode;

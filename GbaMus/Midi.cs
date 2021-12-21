@@ -389,11 +389,11 @@ public class Midi
     /// Adds a sysex event.
     /// </summary>
     /// <param name="sysexData">Data.</param>
-    /// <param name="len">Length.</param>
-    public void AddSysex(ReadOnlySpan<byte> sysexData, int len)
+    public void AddSysex(ReadOnlySpan<byte> sysexData)
     {
         AddDeltaTime();
         Data.WriteByte(0xf0);
+        int len = sysexData.Length;
         //Actually variable length code
         AddVlengthCode(len + 1);
 

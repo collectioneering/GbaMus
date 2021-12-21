@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Globalization;
 
 namespace GbaMus;
 
@@ -148,5 +149,10 @@ internal static class InternalUtils
             offset += read;
             if (read == 0 && left != 0) throw new EndOfStreamException();
         }
+    }
+
+    public static bool TryParseUIntHD(string str, out uint value)
+    {
+        return str.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase) ? uint.TryParse(str.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value) : uint.TryParse(str, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
     }
 }

@@ -34,10 +34,10 @@ public static class SappyDetector
             // alignment
             if (dst_offset % alignment != 0)
             {
-                dst_offset += alignment - (dst_offset % alignment);
+                dst_offset += alignment - dst_offset % alignment;
             }
 
-            for (int offset = dst_offset; (offset + srcsize) <= dstsize; offset += alignment)
+            for (int offset = dst_offset; offset + srcsize <= dstsize; offset += alignment)
             {
                 // memcmp(&dst[offset], src, srcsize)
                 int diff = 0;
@@ -103,7 +103,7 @@ public static class SappyDetector
             if (m4a_selectsong_offset != -1)
             {
 #if DEBUG
-                Console.WriteLine($"Selectsong candidate: {m4a_selectsong_offset:x8}");
+                Console.WriteLine($"Selectsong candidate: 0x{m4a_selectsong_offset:x8}");
 #endif
 
                 // obtain song table address
@@ -111,7 +111,7 @@ public static class SappyDetector
                 if (!is_gba_rom_address(m4a_songtable_address))
                 {
 #if DEBUG
-                    Console.WriteLine($"Song table address error: not a ROM address {m4a_songtable_address:x8}");
+                    Console.WriteLine($"Song table address error: not a ROM address 0x{m4a_songtable_address:x8}");
 #endif
                     m4a_selectsong_search_offset = m4a_selectsong_offset + 1;
                     continue;
@@ -120,7 +120,7 @@ public static class SappyDetector
                 if (!is_valid_offset(m4a_songtable_offset_tmp + 4 - 1, (uint)gbarom.Length))
                 {
 #if DEBUG
-                    Console.WriteLine($"Song table address error: address out of range {m4a_songtable_address:x8}");
+                    Console.WriteLine($"Song table address error: address out of range 0x{m4a_songtable_address:x8}");
 #endif
                     m4a_selectsong_search_offset = m4a_selectsong_offset + 1;
                     continue;
@@ -130,7 +130,7 @@ public static class SappyDetector
                 int validsongcount = 0;
                 for (int songindex = 0; validsongcount < 1; songindex++)
                 {
-                    uint songaddroffset = (uint)(m4a_songtable_offset_tmp + (songindex * 8));
+                    uint songaddroffset = (uint)(m4a_songtable_offset_tmp + songindex * 8);
                     if (!is_valid_offset(songaddroffset + 4 - 1, (uint)gbarom.Length))
                     {
                         break;
@@ -145,14 +145,14 @@ public static class SappyDetector
                     if (!is_gba_rom_address(songaddr))
                     {
 #if DEBUG
-                        Console.WriteLine($"Song address error: not a ROM address {songaddr:x8}");
+                        Console.WriteLine($"Song address error: not a ROM address 0x{songaddr:x8}");
 #endif
                         break;
                     }
                     if (!is_valid_offset(gba_address_to_offset(songaddr) + 4 - 1, (uint)gbarom.Length))
                     {
 #if DEBUG
-                        Console.WriteLine($"Song address error: address out of range {songaddr:x8}");
+                        Console.WriteLine($"Song address error: address out of range 0x{songaddr:x8}");
 #endif
                         break;
                     }
@@ -250,7 +250,7 @@ public static class SappyDetector
                && p.SamplingRateIndex <= 12
                && song_tbl_adr < data.Length
                && BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(4)) < 256
-               && ((data[0] & 0xff000000) == 0);
+               && (data[0] & 0xff000000) == 0;
     }
 
 

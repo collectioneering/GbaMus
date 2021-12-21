@@ -2,7 +2,7 @@
 
 try
 {
-    return SoundFontRipper.Main(args);
+    return GbaMusRipper.Main(args);
 }
 catch (EnvironmentExitException e)
 {

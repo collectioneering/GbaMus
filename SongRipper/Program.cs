@@ -2,7 +2,7 @@
 
 try
 {
-    return SoundFontRipper.Main(args);
+    return SongRipper.Main(args);
 }
 catch (EnvironmentExitException e)
 {
