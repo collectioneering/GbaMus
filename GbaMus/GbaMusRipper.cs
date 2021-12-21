@@ -304,15 +304,23 @@ public static class GbaMusRipper
         {
             // Auto-detect address of sappy engine
             int soundEngineAdr;
-            byte[] tmp = ArrayPool<byte>.Shared.Rent((int)stream.Length);
-            try
+            if (stream is MemoryStream ms && ms.TryGetBuffer(out var buf))
             {
-                stream.ForceRead(tmp, 0, (int)stream.Length);
-                soundEngineAdr = SappyDetector.Find(tmp, settings);
+                soundEngineAdr = SappyDetector.Find(buf, settings);
             }
-            finally
+            else
             {
-                ArrayPool<byte>.Shared.Return(tmp);
+                byte[] tmp = ArrayPool<byte>.Shared.Rent((int)stream.Length);
+                try
+                {
+                    stream.Position = 0;
+                    stream.ForceRead(tmp, 0, (int)stream.Length);
+                    soundEngineAdr = SappyDetector.Find(tmp, settings);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(tmp);
+                }
             }
 
             if (soundEngineAdr > stream.Length)
