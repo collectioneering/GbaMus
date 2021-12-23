@@ -47,6 +47,30 @@ public class MemoryRipper
     }
 
     /// <summary>
+    /// Counts the number of tracks in a song.
+    /// </summary>
+    /// <param name="song">Song id.</param>
+    /// <returns>Number of tracks.</returns>
+    /// <exception cref="ArgumentException">Thrown for bad arguments.</exception>
+    public int GetTrackCount(int song)
+    {
+        if (!_supportedSongs.Contains(song) ||
+            _songList[song] == _songTblEndPtr ||
+            !_soundBankSrcDict.TryGetValue((uint)song, out uint bank) ||
+            !_soundBankDict.TryGetValue(bank, out int bankIndex))
+            throw new ArgumentException("Invalid song ID");
+        SongRipper r = new(_cache, new SongRipper.Settings(
+            Rc: _settings.Rc,
+            Gs: !_settings.Xg,
+            Xg: _settings.Xg,
+            Sv: !_settings.Raw,
+            Lv: !_settings.Raw,
+            BankNumber: bankIndex,
+            BaseAddress: _songList[song]));
+        return r.TrackCount;
+    }
+
+    /// <summary>
     /// Writes MIDI file to stream.
     /// </summary>
     /// <param name="stream">Stream to write to.</param>

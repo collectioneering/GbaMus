@@ -83,7 +83,11 @@ public class SongRipper
 
     private readonly List<Note> _notesPlaying;
 
-    private int _trackAmnt;
+    /// <summary>
+    /// Number of tracks in this song.
+    /// </summary>
+    public int TrackCount { get; private set; }
+
     private Settings _settings;
     private bool _processed;
 
@@ -684,7 +688,7 @@ public class SongRipper
         if (trackAmnt is < 1 or > 16)
             throw new InvalidDataException($"Invalid amount of tracks {trackAmnt}! (must be 1-16).");
         settings.Debug?.WriteLine($"{trackAmnt} tracks.");
-        _trackAmnt = trackAmnt;
+        TrackCount = trackAmnt;
     }
 
     private void ChangeSettings(Settings settings)
@@ -696,7 +700,7 @@ public class SongRipper
         if (trackAmnt is < 1 or > 16)
             throw new InvalidDataException($"Invalid amount of tracks {trackAmnt}! (must be 1-16).");
         settings.Debug?.WriteLine($"{trackAmnt} tracks.");
-        _trackAmnt = trackAmnt;
+        TrackCount = trackAmnt;
         _settings = settings;
     }
 
@@ -786,7 +790,7 @@ public class SongRipper
         int instrBankAddress = (int)_inGba.GetGbaPointer();
 
         // Read table of pointers
-        for (int i = 0; i < _trackAmnt; i++)
+        for (int i = 0; i < TrackCount; i++)
         {
             _trackPtr[i] = _inGba.GetGbaPointer();
 
@@ -799,7 +803,7 @@ public class SongRipper
         }
 
         // Search for loop address of track #0
-        if (_trackAmnt > 1) // If 2 or more track, end of track is before start of track 2
+        if (TrackCount > 1) // If 2 or more track, end of track is before start of track 2
             _inGba.Position = _trackPtr[1] - 9;
         else
             // If only a single track, the end is before start of header data
@@ -817,7 +821,7 @@ public class SongRipper
         // This is the main loop which will process all channels
         // until they are all inactive
         int x = 100000;
-        while (Tick(_trackAmnt))
+        while (Tick(TrackCount))
         {
             if (x-- == 0)
             {
