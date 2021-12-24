@@ -10,7 +10,6 @@ public class SongRipper
     private class Note
     {
         private readonly SongRipper _songRipper;
-        private readonly Midi _midi;
         private int _counter;
         private readonly int _key;
         private readonly int _vel;
@@ -23,17 +22,16 @@ public class SongRipper
         private bool Tick()
         {
             if (_counter <= 0 || --_counter != 0) return false;
-            _midi.AddNoteOff(_chn, (byte)_key, (byte)_vel);
+            _songRipper.AddNoteOff(_chn, (byte)_key, (byte)_vel);
             _songRipper.StopLfo(_chn);
             _songRipper._simultaneousNotesCtr--;
             return true;
         }
 
         // Create note and key on event
-        public Note(SongRipper songRipper, Midi midi, int chn, int len, int key, int vel)
+        public Note(SongRipper songRipper, int chn, int len, int key, int vel)
         {
             _songRipper = songRipper;
-            _midi = midi;
             _chn = chn;
             _counter = len;
             _key = key;
@@ -53,9 +51,31 @@ public class SongRipper
         internal void MakeNoteOnEvent()
         {
             if (_eventMade) return;
-            _midi.AddNoteOn(_chn, (byte)_key, (byte)_vel);
+            _songRipper.AddNoteOn(_chn, (byte)_key, (byte)_vel);
             _eventMade = true;
         }
+    }
+
+    /// <summary>
+    /// Adds a note on event to the stream.
+    /// </summary>
+    /// <param name="chan">Channel.</param>
+    /// <param name="key">Key.</param>
+    /// <param name="vel">Velocity.</param>
+    public void AddNoteOn(int chan, byte key, byte vel)
+    {
+        _midi.AddNoteOn(chan, key, vel);
+    }
+
+    /// <summary>
+    /// Adds a note off event to the stream.
+    /// </summary>
+    /// <param name="chan">Channel.</param>
+    /// <param name="key">Key.</param>
+    /// <param name="vel">Velocity.</param>
+    private void AddNoteOff(int chan, byte key, byte vel)
+    {
+        _midi.AddNoteOff(chan, key, vel);
     }
 
     private readonly uint[] _trackPtr = new uint[16];
@@ -90,6 +110,7 @@ public class SongRipper
 
     private Settings _settings;
     private bool _processed;
+    private int _instrBankAddress;
 
     private Midi _midi;
     private readonly Stream _inGba;
@@ -339,7 +360,7 @@ public class SongRipper
             // Linearise velocity if needed
             if (_settings.Lv) vel = (int)Math.Sqrt(127.0 * vel);
 
-            _notesPlaying.Insert(0, new Note(this, _midi, track, s_lenTbl[command - 0xd0 + 1] + lenOfs, key + _keyShift[track], vel));
+            _notesPlaying.Insert(0, new Note(this, track, s_lenTbl[command - 0xd0 + 1] + lenOfs, key + _keyShift[track], vel));
             return;
         }
 
@@ -507,7 +528,7 @@ public class SongRipper
                     if (_settings.Lv) vel = (int)Math.Sqrt(127.0 * vel);
 
                     // Make note of infinite length
-                    _notesPlaying.Insert(0, new Note(this, _midi, track, -1, key + _keyShift[track], vel));
+                    _notesPlaying.Insert(0, new Note(this, track, -1, key + _keyShift[track], vel));
                 }
                 return;
         }
@@ -693,6 +714,7 @@ public class SongRipper
 
     private void ChangeSettings(Settings settings)
     {
+        _processed = false;
         if (_inGba.Length < settings.BaseAddress)
             throw new ArgumentException($"Can't seek to the base address 0x{settings.BaseAddress:x}.");
         _inGba.Position = settings.BaseAddress;
@@ -706,12 +728,7 @@ public class SongRipper
 
     private void Reset()
     {
-        if (!_processed)
-        {
-            _processed = true;
-            return;
-        }
-        _midi = new Midi(24);
+        _midi = new Midi(24, _settings.MetadataOnly);
         _trackPtr.AsSpan().Clear();
         _lastCmd.AsSpan().Clear();
         _lastKey.AsSpan().Clear();
@@ -743,6 +760,7 @@ public class SongRipper
     /// <exception cref="InvalidDataException">Thrown for invalid state resulting from provided settings.</exception>
     public int Write(Stream stream, Settings settings)
     {
+        if (settings.MetadataOnly) throw new InvalidOperationException("Cannot export metadata-only ripper");
         if (stream == null) throw new ArgumentNullException(nameof(stream));
         if (settings == null) throw new ArgumentNullException(nameof(settings));
         ChangeSettings(settings);
@@ -757,8 +775,36 @@ public class SongRipper
     public int Write(Stream stream)
     {
         if (stream == null) throw new ArgumentNullException(nameof(stream));
+        if (_settings.MetadataOnly) throw new InvalidOperationException("Cannot export metadata-only ripper");
+        if (!_midi.CanExport) throw new InvalidOperationException("Cannot export non-exportable midi instance");
+        // Process if we haven't for these settings
+        if (!_processed)
+        {
+            _settings.Debug?.WriteLine("Converting...");
+            WriteInternal();
+        }
+        _settings.Debug?.Write("Dump complete. Now outputting MIDI file...");
+        _midi.Write(stream);
+        return _instrBankAddress;
+    }
+
+    /// <summary>
+    /// Calculates duration.
+    /// </summary>
+    /// <returns>Song duration, in seconds.</returns>
+    public double CalculateDuration()
+    {
+        // If processed with current settings, don't need to reprocess to get this info
+        if (!_processed) WriteInternal();
+        return _midi.Duration;
+    }
+
+    /// <summary>
+    /// Process data into current midi container.
+    /// </summary>
+    private unsafe void WriteInternal()
+    {
         Reset();
-        _settings.Debug?.WriteLine("Converting...");
         if (_settings.Rc)
         {
             // Make the drum channel last in the list, hopefully reducing the risk of it being used
@@ -766,29 +812,23 @@ public class SongRipper
             for (uint j = 10; j < 16; ++j)
                 _midi.ChanReorder[j] = (byte)(j - 1);
         }
-
         if (_settings.Gs)
         {
             // GS reset
             _midi.AddSysex(s_gsResetSysex);
             _midi.AddSysex(s_part10NormalSysex);
         }
-
         if (_settings.Xg)
         {
             // XG reset
             _midi.AddSysex(s_xgSysex);
         }
-
         _midi.AddMarker(Encoding.ASCII.GetBytes("Converted by SequenceRipper 2.0"));
-
         _inGba.Position = _settings.BaseAddress + 1;
         _inGba.ReadUInt8LittleEndian(); // Unknown byte
         _inGba.ReadUInt8LittleEndian(); // Priority
         sbyte reverb = _inGba.ReadInt8LittleEndian(); // Reverb
-
         int instrBankAddress = (int)_inGba.GetGbaPointer();
-
         // Read table of pointers
         for (int i = 0; i < TrackCount; i++)
         {
@@ -801,14 +841,12 @@ public class SongRipper
             if (reverb < 0) // add reverb controller on all tracks
                 _midi.AddController(i, 91, (byte)(_settings.Lv ? (int)Math.Sqrt((reverb & 0x7f) * 127.0) : reverb & 0x7f));
         }
-
         // Search for loop address of track #0
         if (TrackCount > 1) // If 2 or more track, end of track is before start of track 2
             _inGba.Position = _trackPtr[1] - 9;
         else
             // If only a single track, the end is before start of header data
             _inGba.Position = _settings.BaseAddress - 9;
-
         // Read where in track 1 the loop starts
         for (int i = 0; i < 5; i++)
             if (_inGba.ReadUInt8LittleEndian() == 0xb2)
@@ -817,7 +855,6 @@ public class SongRipper
                 _loopAdr = _inGba.GetGbaPointer();
                 break;
             }
-
         // This is the main loop which will process all channels
         // until they are all inactive
         int x = 100000;
@@ -830,15 +867,11 @@ public class SongRipper
                 break;
             }
         }
-
         // If a loop was detected this is its end
         if (_loopFlag) _midi.AddMarker(Encoding.ASCII.GetBytes("loopEnd"));
-
         _settings.Debug?.WriteLine($" Maximum simultaneous notes: {_simultaneousNotesMax}");
-
-        _settings.Debug?.Write("Dump complete. Now outputting MIDI file...");
-        _midi.Write(stream);
-        return instrBankAddress;
+        _instrBankAddress = instrBankAddress;
+        _processed = true;
     }
 
     /// <summary>
@@ -853,8 +886,8 @@ public class SongRipper
     /// <param name="Sv">Simulate vibrato. This will insert controllers in real time to simulate a vibrato, instead of just when commands are given. Like -lv, this should be used to have the output \"sound\" like the original song, but shouldn't be used to get an exact dump of sequence data.</param>
     /// <param name="BankNumber">Forces all patches to be in the specified bank (0-127).</param>
     /// <param name="BaseAddress">Base address of song.</param>
-    public record Settings(TextWriter? Debug = null, TextWriter? Error = null,
-            bool Rc = false, bool Gs = false, bool Xg = false, bool Lv = false, bool Sv = false,
-            int? BankNumber = null, uint BaseAddress = 0)
-        : ToolSettings(Debug, Error);
+    /// <param name="MetadataOnly">If true, disables output to stream.</param>
+    public readonly record struct Settings(TextWriter? Debug = null, TextWriter? Error = null,
+        bool Rc = false, bool Gs = false, bool Xg = false, bool Lv = false, bool Sv = false,
+        int? BankNumber = null, uint BaseAddress = 0, bool MetadataOnly = false);
 }

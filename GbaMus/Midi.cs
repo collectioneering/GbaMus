@@ -8,23 +8,33 @@ namespace GbaMus;
 /// <summary>
 /// Represents a MIDI file.
 /// </summary>
-public class Midi
+public unsafe struct Midi
 {
+    /// <summary>
+    /// True if this instance can export via <see cref="Write"/>.
+    /// </summary>
+    public bool CanExport => _data != null;
+
+    /// <summary>
+    /// Current duration value.
+    /// </summary>
+    public double Duration;
+
     /// <summary>
     /// User can change the order of the channels.
     /// </summary>
-    public byte[] ChanReorder;
+    public fixed byte ChanReorder[16];
 
     /// <summary>
     /// Delta time per beat.
     /// </summary>
     private readonly ushort _deltaTimePerBeat;
 
-    private readonly short[] _lastRpnType;
+    private fixed short _lastRpnType[16];
 
-    private readonly short[] _lastNrpnType;
+    private fixed short _lastNrpnType[16];
 
-    private readonly int[] _lastType;
+    private fixed int _lastType[16];
 
     /// <summary>
     /// Last channel, used for compression.
@@ -44,19 +54,20 @@ public class Midi
     /// <summary>
     /// Track data.
     /// </summary>
-    private MemoryStream _data;
+    private MemoryStream? _data;
+
+    private readonly bool _created;
+
+    private double _tempo;
 
     /// <summary>
     /// Initializes a new instance of <summary>Midi</summary>.
     /// </summary>
     /// <param name="deltaTime">Delta time per beat.</param>
-    public Midi(ushort deltaTime)
+    /// <param name="metadataOnly">If true, disable file export via <see cref="Write"/>.</param>
+    public Midi(ushort deltaTime, bool metadataOnly = false)
     {
-        ChanReorder = new byte[16];
-        _lastRpnType = new short[16];
-        _lastNrpnType = new short[16];
-        _lastType = new int[16];
-        _data = new MemoryStream();
+        _data = metadataOnly ? null : new MemoryStream();
         _deltaTimePerBeat = deltaTime;
         for (int i = 15; i >= 0; i--)
         {
@@ -67,6 +78,10 @@ public class Midi
         }
         _lastChannel = -1;
         _timeCtr = 0;
+        _lastEventType = 0;
+        _created = true;
+        Duration = 0;
+        _tempo = 120;
     }
 
     /// <summary>
@@ -75,6 +90,7 @@ public class Midi
     /// <param name="code">Value to write.</param>
     private void AddVlengthCode(int code)
     {
+        if (_data == null) return;
         byte word1 = (byte)(code & 0x7f);
         byte word2 = (byte)((code >> 7) & 0x7f);
         byte word3 = (byte)((code >> 14) & 0x7f);
@@ -104,6 +120,7 @@ public class Midi
     private void AddDeltaTime()
     {
         AddVlengthCode((int)_timeCtr);
+        Duration += _timeCtr * 60.0 / (_tempo * _deltaTimePerBeat);
         // Reset time counter to zero.
         _timeCtr = 0;
     }
@@ -121,8 +138,10 @@ public class Midi
         {
             _lastChannel = chan;
             _lastEventType = type;
+            if (_data == null) return;
             _data.WriteByte((byte)(((int)type << 4) | ChanReorder[chan]));
         }
+        if (_data == null) return;
         _data.WriteByte(param1);
     }
 
@@ -140,15 +159,17 @@ public class Midi
         {
             _lastChannel = chan;
             _lastEventType = type;
+            if (_data == null) return;
             _data.WriteByte((byte)(((int)type << 4) | ChanReorder[chan]));
         }
+        if (_data == null) return;
         _data.WriteByte(param1);
         _data.WriteByte(param2);
     }
 
     [StructLayout(LayoutKind.Explicit, Size = 14)]
     [SuppressMessage("ReSharper", "PrivateFieldCanBeConvertedToLocalVariable")]
-    private unsafe struct MthdChunk
+    private struct MthdChunk
     {
         private static ReadOnlySpan<byte> Head => new[] { (byte)'M', (byte)'T', (byte)'h', (byte)'d' };
 
@@ -175,7 +196,7 @@ public class Midi
 
     [StructLayout(LayoutKind.Explicit, Size = 8)]
     [SuppressMessage("ReSharper", "PrivateFieldCanBeConvertedToLocalVariable")]
-    private unsafe struct MtrkChunk
+    private struct MtrkChunk
     {
         private static ReadOnlySpan<byte> Head => new[] { (byte)'M', (byte)'T', (byte)'r', (byte)'k' };
 
@@ -197,6 +218,8 @@ public class Midi
     /// <param name="stream">Output stream.</param>
     public void Write(Stream stream)
     {
+        EnsureCreated();
+        if (_data == null) throw new InvalidOperationException("This instance was not created with appropriate settings.");
         //Add end-of-track meta event
         _data.WriteByte(0x00);
         _data.WriteByte(0xff);
@@ -222,6 +245,7 @@ public class Midi
     /// </summary>
     public void Clock()
     {
+        EnsureCreated();
         _timeCtr++;
     }
 
@@ -233,6 +257,7 @@ public class Midi
     /// <param name="vel">Velocity.</param>
     public void AddNoteOn(int chan, byte key, byte vel)
     {
+        EnsureCreated();
         AddEvent(MidiEventType.Noteon, chan, key, vel);
     }
 
@@ -244,6 +269,7 @@ public class Midi
     /// <param name="vel">Velocity.</param>
     public void AddNoteOff(int chan, byte key, byte vel)
     {
+        EnsureCreated();
         AddEvent(MidiEventType.Noteoff, chan, key, vel);
     }
 
@@ -255,6 +281,7 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddController(int chan, byte ctrl, byte value)
     {
+        EnsureCreated();
         AddEvent(MidiEventType.Controller, chan, ctrl, value);
     }
 
@@ -265,6 +292,7 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddChanaft(int chan, byte value)
     {
+        EnsureCreated();
         AddEvent(MidiEventType.Chnaft, chan, value);
     }
 
@@ -275,6 +303,7 @@ public class Midi
     /// <param name="number">Number.</param>
     public void AddPChange(int chan, byte number)
     {
+        EnsureCreated();
         AddEvent(MidiEventType.Pchange, chan, number);
     }
 
@@ -285,6 +314,7 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddPitchBend(int chan, short value)
     {
+        EnsureCreated();
         byte lo = (byte)(value & 0x7f);
         byte hi = (byte)((value >> 7) & 0x7f);
         AddEvent(MidiEventType.Pitchbend, chan, lo, hi);
@@ -297,6 +327,7 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddPitchBend(int chan, byte value)
     {
+        EnsureCreated();
         AddEvent(MidiEventType.Pitchbend, chan, 0, value);
     }
 
@@ -308,6 +339,8 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddRpn(int chan, short type, short value)
     {
+        EnsureCreated();
+        if (chan is < 0 or >= 16) throw new ArgumentOutOfRangeException(nameof(chan));
         if (_lastRpnType[chan] != type || _lastType[chan] != 0)
         {
             _lastRpnType[chan] = type;
@@ -328,6 +361,7 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddRpn(int chan, short type, byte value)
     {
+        EnsureCreated();
         AddRpn(chan, type, (short)(value << 7));
     }
 
@@ -339,6 +373,8 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddNrpn(int chan, short type, short value)
     {
+        EnsureCreated();
+        if (chan is < 0 or >= 16) throw new ArgumentOutOfRangeException(nameof(chan));
         if (_lastNrpnType[chan] != type || _lastType[chan] != 1)
         {
             _lastNrpnType[chan] = type;
@@ -360,6 +396,7 @@ public class Midi
     /// <param name="value">Value.</param>
     public void AddNrpn(int chan, short type, byte value)
     {
+        EnsureCreated();
         AddNrpn(chan, type, (short)(value << 7));
     }
 
@@ -369,7 +406,9 @@ public class Midi
     /// <param name="text">Content.</param>
     public void AddMarker(ReadOnlySpan<byte> text)
     {
+        EnsureCreated();
         AddDeltaTime();
+        if (_data == null) return;
         _data.WriteByte(0xFF);
         //Add text meta event if marker is false, marker meta even if true
         _data.WriteByte(6);
@@ -394,7 +433,9 @@ public class Midi
     /// <param name="sysexData">Data.</param>
     public void AddSysex(ReadOnlySpan<byte> sysexData)
     {
+        EnsureCreated();
         AddDeltaTime();
+        if (_data == null) return;
         _data.WriteByte(0xf0);
         int len = sysexData.Length;
         //Actually variable length code
@@ -419,17 +460,24 @@ public class Midi
     /// <param name="tempo">Tempo.</param>
     public void AddTempo(double tempo)
     {
+        EnsureCreated();
+        AddDeltaTime();
+        _tempo = tempo;
+        if (_data == null) return;
         int t = (int)(60000000.0 / tempo);
         byte t1 = (byte)t;
         byte t2 = (byte)(t >> 8);
         byte t3 = (byte)(t >> 16);
-
-        AddDeltaTime();
         _data.WriteByte(0xff);
         _data.WriteByte(0x51);
         _data.WriteByte(0x03);
         _data.WriteByte(t3);
         _data.WriteByte(t2);
         _data.WriteByte(t1);
+    }
+
+    private void EnsureCreated()
+    {
+        if (!_created) throw new InvalidOperationException($"This object is not a valid instance of {nameof(Midi)}.");
     }
 }

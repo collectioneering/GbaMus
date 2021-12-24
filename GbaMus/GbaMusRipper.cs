@@ -152,12 +152,11 @@ public static class GbaMusRipper
         uint songTblEndPtr;
         List<uint> songList;
         SortedSet<uint> soundBankSet;
-        Dictionary<uint, uint> soundBankSrcDict;
         Dictionary<uint, int> soundBankDict;
         try
         {
             Load(inGba, settings, out sampleRate, out mainVolume, out songTblEndPtr,
-                out songList, out soundBankSet, out soundBankSrcDict, out soundBankDict);
+                out songList, out soundBankSet, out soundBankDict);
         }
         catch (IOException e)
         {
@@ -178,8 +177,8 @@ public static class GbaMusRipper
         {
             if (songList[(int)i] != songTblEndPtr)
             {
-                if (!soundBankSrcDict.ContainsKey(i)) continue;
-                uint bankIndex = (uint)soundBankDict[soundBankSrcDict[i]];
+                if (!soundBankDict.ContainsKey(i)) continue;
+                uint bankIndex = (uint)soundBankDict[i];
                 List<string> seqRipCmd = new();
                 seqRipCmd.Add(inGbaPath);
 
@@ -289,11 +288,10 @@ public static class GbaMusRipper
     /// <param name="songTblEndPtr">End of song table.</param>
     /// <param name="songList">Song list.</param>
     /// <param name="soundBankSet">Sound banks.</param>
-    /// <param name="soundBankSrcDict">Mapping of song index to sound bank data offset.</param>
-    /// <param name="soundBankDict">Mapping of sound bank data offset to generated sound bank number (in order of <paramref name="soundBankSet"/>).</param>
+    /// <param name="soundBankDict">Mapping of song index to generated sound bank number (in order of <paramref name="soundBankSet"/>).</param>
     /// <exception cref="IOException">Thrown for I/O errors.</exception>
     public static void Load(Stream stream, Settings settings, out int sampleRate, out int mainVolume, out uint songTblEndPtr,
-        out List<uint> songList, out SortedSet<uint> soundBankSet, out Dictionary<uint, uint> soundBankSrcDict, out Dictionary<uint, int> soundBankDict)
+        out List<uint> songList, out SortedSet<uint> soundBankSet, out Dictionary<uint, int> soundBankDict)
     {
         sampleRate = 0;
         mainVolume = 0;
@@ -306,7 +304,7 @@ public static class GbaMusRipper
             int soundEngineAdr;
             if (stream is MemoryStream ms && ms.TryGetBuffer(out var buf))
             {
-                soundEngineAdr = SappyDetector.Find(buf, settings);
+                soundEngineAdr = SappyDetector.Find(buf, new SappyDetector.Settings(settings.Debug, settings.Error));
             }
             else
             {
@@ -315,7 +313,7 @@ public static class GbaMusRipper
                 {
                     stream.Position = 0;
                     stream.ForceRead(tmp, 0, (int)stream.Length);
-                    soundEngineAdr = SappyDetector.Find(tmp, settings);
+                    soundEngineAdr = SappyDetector.Find(tmp, new SappyDetector.Settings(settings.Debug, settings.Error));
                 }
                 finally
                 {
@@ -384,7 +382,7 @@ public static class GbaMusRipper
 
         // New list of sound banks
         soundBankSet = new SortedSet<uint>();
-        soundBankSrcDict = new Dictionary<uint, uint>();
+        Dictionary<uint, uint> soundBankSrcDict = new();
         for (i = 0; i < songList.Count; i++)
         {
             // Ignore unused song, which points to the end of the song table (for some reason)
@@ -401,7 +399,8 @@ public static class GbaMusRipper
                 soundBankSrcDict.Add(i, soundBankPtr);
             }
         }
-        soundBankDict = soundBankSet.Select((v, idx) => (v, idx)).ToDictionary(v => v.v, v => v.idx);
+        Dictionary<uint, int> soundBankTarDict = soundBankSet.Select((v, idx) => (v, idx)).ToDictionary(v => v.v, v => v.idx);
+        soundBankDict = soundBankSrcDict.ToDictionary(v => v.Key, v => soundBankTarDict[v.Value]);
     }
 
     private static void PrintArgSeq(IReadOnlyList<string> args, TextWriter? textWriter)
@@ -424,7 +423,5 @@ public static class GbaMusRipper
     /// <param name="Sb">Separate banks. Every sound bank is ripped to a different .sf2 file and placed into different sub-folders (instead of doing it in a single .sf2 file and a single folder).</param>
     /// <param name="Raw">Output MIDIs exactly as they're encoded in ROM, without linearize volume and velocities and without simulating vibratos.</param>
     /// <param name="SongTblPtr">Force address of the song table manually. This is required for manually dumping music data from ROMs where the location can't be detected automatically.</param>
-    public record Settings(TextWriter? Debug = null, TextWriter? Error = null, bool Gm = false, bool Xg = false, bool Rc = false, bool Sb = false, bool Raw = false,
-            uint SongTblPtr = 0)
-        : ToolSettings(Debug, Error);
+    public readonly record struct Settings(TextWriter? Debug = null, TextWriter? Error = null, bool Gm = false, bool Xg = false, bool Rc = false, bool Sb = false, bool Raw = false, uint SongTblPtr = 0);
 }

@@ -259,7 +259,7 @@ public static class SappyDetector
     /// <returns>Nonzero for sappy info position.</returns>
     public static int Main(string[] args)
     {
-        ToolSettings settings = new(Console.Out, Console.Error);
+        Settings settings = new(Console.Out, Console.Error);
         if (args.Length != 1)
         {
             PrintInstructions(settings.Debug);
@@ -287,7 +287,7 @@ public static class SappyDetector
     /// <param name="buffer">Buffer to search.</param>
     /// <param name="settings">Settings.</param>
     /// <returns>Found offset, or 0.</returns>
-    public static int Find(ReadOnlySpan<byte> buffer, ToolSettings settings)
+    public static int Find(ReadOnlySpan<byte> buffer, Settings settings)
     {
         long offset = M4ASearchBlock(buffer, settings.Debug);
 
@@ -325,4 +325,11 @@ public static class SappyDetector
         /* Return the offset of sappy info to the operating system */
         return (int)offset;
     }
+
+    /// <summary>
+    /// Settings for sappy detector.
+    /// </summary>
+    /// <param name="Debug">Debug output.</param>
+    /// <param name="Error">Error output.</param>
+    public readonly record struct Settings(TextWriter? Debug = null, TextWriter? Error = null);
 }

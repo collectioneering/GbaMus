@@ -17,7 +17,6 @@ public class MemoryRipper
     private readonly uint _songTblEndPtr;
     private readonly List<uint> _songList;
     private readonly SortedSet<uint> _soundBankSet;
-    private readonly Dictionary<uint, uint> _soundBankSrcDict;
     private readonly Dictionary<uint, int> _soundBankDict;
     private readonly SortedSet<int> _supportedSongs;
 
@@ -39,10 +38,10 @@ public class MemoryRipper
             stream.CopyTo(_cache);
         }
         GbaMusRipper.Load(_cache, settings, out _sampleRate, out _mainVolume, out _songTblEndPtr,
-            out _songList, out _soundBankSet, out _soundBankSrcDict, out _soundBankDict);
+            out _songList, out _soundBankSet, out _soundBankDict);
         _supportedSongs = new SortedSet<int>();
         for (uint i = 0; i < _songList.Count; i++)
-            if (_songList[(int)i] != _songTblEndPtr && _soundBankSrcDict.ContainsKey(i))
+            if (_songList[(int)i] != _songTblEndPtr && _soundBankDict.ContainsKey(i))
                 _supportedSongs.Add((int)i);
     }
 
@@ -51,23 +50,10 @@ public class MemoryRipper
     /// </summary>
     /// <param name="song">Song id.</param>
     /// <returns>Number of tracks.</returns>
-    /// <exception cref="ArgumentException">Thrown for bad arguments.</exception>
+    /// <exception cref="ArgumentException">Thrown for invalid song id.</exception>
     public int GetTrackCount(int song)
     {
-        if (!_supportedSongs.Contains(song) ||
-            _songList[song] == _songTblEndPtr ||
-            !_soundBankSrcDict.TryGetValue((uint)song, out uint bank) ||
-            !_soundBankDict.TryGetValue(bank, out int bankIndex))
-            throw new ArgumentException("Invalid song ID");
-        SongRipper r = new(_cache, new SongRipper.Settings(
-            Rc: _settings.Rc,
-            Gs: !_settings.Xg,
-            Xg: _settings.Xg,
-            Sv: !_settings.Raw,
-            Lv: !_settings.Raw,
-            BankNumber: bankIndex,
-            BaseAddress: _songList[song]));
-        return r.TrackCount;
+        return GetSongRipper(song, true).TrackCount;
     }
 
     /// <summary>
@@ -75,23 +61,34 @@ public class MemoryRipper
     /// </summary>
     /// <param name="stream">Stream to write to.</param>
     /// <param name="song">Song index.</param>
-    /// <exception cref="ArgumentException">Thrown for bad arguments.</exception>
+    /// <exception cref="ArgumentException">Thrown for invalid song id.</exception>
     public void WriteMidi(Stream stream, int song)
+    {
+        GetSongRipper(song).Write(stream);
+    }
+
+    /// <summary>
+    /// Gets song ripper for the specified song.
+    /// </summary>
+    /// <param name="song">Song to rip.</param>
+    /// <param name="metadataOnly">If true, metadata export will be disabled on the created ripper (this can be changed later with <see cref="SongRipper.ChangeSettings"/>).</param>
+    /// <returns>Song ripper.</returns>
+    /// <exception cref="ArgumentException">Thrown for invalid song id.</exception>
+    public SongRipper GetSongRipper(int song, bool metadataOnly = false)
     {
         if (!_supportedSongs.Contains(song) ||
             _songList[song] == _songTblEndPtr ||
-            !_soundBankSrcDict.TryGetValue((uint)song, out uint bank) ||
-            !_soundBankDict.TryGetValue(bank, out int bankIndex))
+            !_soundBankDict.TryGetValue((uint)song, out int bankIndex))
             throw new ArgumentException("Invalid song ID");
-        SongRipper r = new(_cache, new SongRipper.Settings(
+        return new SongRipper(_cache, new SongRipper.Settings(
             Rc: _settings.Rc,
             Gs: !_settings.Xg,
             Xg: _settings.Xg,
             Sv: !_settings.Raw,
             Lv: !_settings.Raw,
             BankNumber: bankIndex,
-            BaseAddress: _songList[song]));
-        r.Write(stream);
+            BaseAddress: _songList[song],
+            MetadataOnly: metadataOnly));
     }
 
     /// <summary>

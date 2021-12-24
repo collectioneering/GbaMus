@@ -691,7 +691,7 @@ public class SoundFontRipper
     /// <param name="GmPresetNames">Give General MIDI names to presets. Note that this will only change the names and will NOT magically turn the soundfont into a General MIDI compliant soundfont.</param>
     /// <param name="SampleRate">Sampling rate for samples. Default: 22050 Hz</param>
     /// <param name="MainVolume">Main volume for sample instruments. Range: 1-15. Game Boy channels are unaffected.</param>
-    public record Settings(TextWriter? Debug = null, TextWriter? Error = null, IReadOnlyCollection<uint> Addresses = null!,
+    public readonly record struct Settings(TextWriter? Debug = null, TextWriter? Error = null, IReadOnlyCollection<uint> Addresses = null!,
         bool VerboseFlag = false, bool GmPresetNames = false,
-        uint SampleRate = 22050, uint MainVolume = 15) : ToolSettings(Debug, Error);
+        uint SampleRate = 22050, uint MainVolume = 15);
 }
