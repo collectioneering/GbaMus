@@ -71,7 +71,7 @@ public class GbaSamples
         // GBA pitch is 1024 * Mid_C frequency
         double deltaNote = 12 * Math.Log(Sf2.DefaultSampleRate * 1024.0 / pitch, 2);
         double intDeltaNote = Math.Round(deltaNote);
-        uint pitchCorrection = (uint)((intDeltaNote - deltaNote) * 100);
+        sbyte pitchCorrection = (sbyte)((intDeltaNote - deltaNote) * 100);
         uint originalPitch = (uint)(60 + intDeltaNote);
 
         // Detect Golden Sun samples
