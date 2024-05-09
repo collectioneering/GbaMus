@@ -17,6 +17,11 @@ public class GbaSamples
     /// </summary>
     public readonly Sf2 Sf2;
 
+    private Stream GoldenSunSynthStream => _goldenSunSynthStream ??= Resources.GetGoldenSunSynth();
+    private Stream PsgDataStream => _psgDataStream ??= Resources.GetPsgData();
+    private Stream? _goldenSunSynthStream;
+    private Stream? _psgDataStream;
+
     /// <summary>
     /// Initializes a new instance of <see cref="GbaSamples"/>.
     /// </summary>
@@ -90,12 +95,12 @@ public class GbaSamples
                         {
                             // Square wave with constant duty cycle
                             uint basePointer = (uint)(128 + 64 * (dutyCycle >> 2));
-                            Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), basePointer, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
+                            Sf2.AddNewSample(GoldenSunSynthStream, SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), basePointer, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
                         }
                         else
                         {
                             // Sqaure wave with variable duty cycle, not exact, but sounds close enough
-                            Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), 128, 8192, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
+                            Sf2.AddNewSample(GoldenSunSynthStream, SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), 128, 8192, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
                         }
                     }
                     break;
@@ -103,14 +108,14 @@ public class GbaSamples
                 case 1: // Saw wave
                     {
                         string name = $"Saw @0x{pointer:x}";
-                        Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), 0, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
+                        Sf2.AddNewSample(GoldenSunSynthStream, SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), 0, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
                     }
                     break;
 
                 case 2: // Triangle wave
                     {
                         string name = $"Triangle @0x{pointer:x}";
-                        Sf2.AddNewSample(Resources.GetGoldenSunSynth(), SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), 64, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
+                        Sf2.AddNewSample(GoldenSunSynthStream, SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), 64, 64, true, 0, (sbyte)originalPitch, (sbyte)pitchCorrection);
                     }
                     break;
 
@@ -203,7 +208,7 @@ public class GbaSamples
 
         for (int i = 0; i < 5; i++)
         {
-            Sf2.AddNewSample(Resources.GetPsgData(), SampleType.Signed16, Encoding.ASCII.GetBytes(name + (char)('A' + i)),
+            Sf2.AddNewSample(PsgDataStream, SampleType.Signed16, Encoding.ASCII.GetBytes(name + (char)('A' + i)),
                 (uint)s_pulsePointerTbl[dutyCycle * 5 + i], (uint)s_pulseSizeTbl[dutyCycle * 5 + i], true,
                 (uint)(s_pulseSizeTbl[dutyCycle * 5 + i] - s_pulseLoopSize[i]), (sbyte)(36 + 12 * i), 38, 44100);
             SamplesList.Add(dutyCycle);
@@ -238,7 +243,7 @@ public class GbaSamples
 
         string name = "Noise " + (metallic ? "metallic " : "normal ") + key;
 
-        Sf2.AddNewSample(Resources.GetPsgData(), SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), (uint)s_noisePointerTbl[key - 42],
+        Sf2.AddNewSample(PsgDataStream, SampleType.Unsigned8, Encoding.ASCII.GetBytes(name), (uint)s_noisePointerTbl[key - 42],
             (uint)(metallic ? s_noiseMetallicLenTbl[key - 42] : s_noiseNormalLenTbl[key - 42]), true, 0, (sbyte)key, 0, 44100);
 
         SamplesList.Add(num);

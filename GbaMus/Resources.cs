@@ -5,8 +5,8 @@
 /// </summary>
 public static class Resources
 {
-    private static MemoryStream? s_psgData;
-    private static MemoryStream? s_goldenSunSynth;
+    private static byte[]? s_psgData;
+    private static byte[]? s_goldenSunSynth;
 
     /// <summary>
     /// Gets stream for psg_data.raw
@@ -14,11 +14,7 @@ public static class Resources
     /// <returns>psg_data.raw</returns>
     public static Stream GetPsgData()
     {
-        if (s_psgData != null) return s_psgData;
-        s_psgData = new MemoryStream();
-        using Stream s = typeof(Resources).Assembly.GetManifestResourceStream("GbaMus.psg_data.raw") ?? throw new IOException();
-        s.CopyTo(s_psgData);
-        return s_psgData;
+        return new MemoryStream(s_psgData ??= LoadResource("GbaMus.psg_data.raw"), false);
     }
 
     /// <summary>
@@ -27,10 +23,25 @@ public static class Resources
     /// <returns>goldensun_synth.raw</returns>
     public static Stream GetGoldenSunSynth()
     {
-        if (s_goldenSunSynth != null) return s_goldenSunSynth;
-        s_goldenSunSynth = new MemoryStream();
-        using Stream s = typeof(Resources).Assembly.GetManifestResourceStream("GbaMus.goldensun_synth.raw") ?? throw new IOException();
-        s.CopyTo(s_goldenSunSynth);
-        return s_goldenSunSynth;
+        return new MemoryStream(s_goldenSunSynth ??= LoadResource("GbaMus.goldensun_synth.raw"), false);
+    }
+
+    private static byte[] LoadResource(string name)
+    {
+        using Stream s = typeof(Resources).Assembly.GetManifestResourceStream(name) ?? throw new IOException($"Failed to load manifest resource [{name}]");
+        if (s.CanSeek)
+        {
+            long l = s.Length;
+            if (l > int.MaxValue)
+            {
+                throw new InvalidOperationException($"Manifest resource [{name}] has length {l} which exceeds supported length");
+            }
+            byte[] result = new byte[l];
+            s.ForceRead(result, 0, result.Length);
+            return result;
+        }
+        var ms = new MemoryStream();
+        s.CopyTo(ms);
+        return ms.ToArray();
     }
 }
